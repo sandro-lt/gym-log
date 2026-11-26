@@ -88,7 +88,8 @@ h3 { margin: 0; font-size: 18px; font-weight: 700; }
 
 /* ---------- Übung im Workout ---------- */
 .entry-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px -8px 0 0; }
-.lasttime { margin: 2px 0 12px; font-size: 13px; color: var(--muted); }
+.lasttime { margin: 2px 0 12px; font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; }
+.lasttime .best { flex: none; text-align: right; }
 .lasttime b { color: var(--text); font-weight: 600; }
 
 .setrow {
@@ -685,3 +686,10 @@ body.resting #toast { bottom: calc(var(--tabbar) + var(--sab) + 96px); }
 .trend.deload { width: auto; padding: 0 8px; color: #7a9cff; background: rgba(122, 156, 255, .16); font-size: 13px; font-weight: 800; }
 .zzz-ic { width: 22px; text-align: center; color: #7a9cff; font-size: 12px; font-weight: 800; }
 .menu button span small { display: block; font-size: 13px; font-weight: 500; color: var(--muted); }
+
+/* tap the exercise name in a workout -> its history */
+[data-action=entry-history] { cursor: pointer; }
+[data-action=entry-history] .chev { display: flex; color: var(--muted); align-self: center; }
+/* Favorites in the exercise list */
+.fav-rank { flex: none; width: 18px; text-align: center; font-weight: 800; color: var(--accent); }
+.fav-n { flex: none; color: var(--muted); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }

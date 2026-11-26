@@ -19,6 +19,14 @@ function doneSetsOfExercise(exId, { beforeIso = null, excludeWorkoutId = null } 
   return out;
 }
 
+/** Best earlier set of an exercise (by e10RM / duration), as known when workout `w` was done. */
+function bestSetBefore(exId, w) {
+  const rows = doneSetsOfExercise(exId, { excludeWorkoutId: w.id, beforeIso: w.endedAt ? w.startedAt : null });
+  let best = null, score = -Infinity;
+  for (const { s } of rows) { const v = setScore(s); if (v != null && v > score) { score = v; best = s; } }
+  return best;
+}
+
 /** Score used for "is this set a record": e10RM for weight × reps, seconds for duration. */
 function setScore(s) {
   if (s.durationSec != null) return s.durationSec;

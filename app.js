@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.14';
+const APP_VERSION = '1.15';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -262,6 +262,7 @@ function entryCard(w, we) {
   const sets = setsOf(we.id);
   // for an old workout being edited, "last time" means before that workout
   const last = lastPerformance(we.exerciseId, w.id, w.endedAt ? w.startedAt : null);
+  const best = bestSetBefore(we.exerciseId, w); // records.js
   const records = setRecordFlags(w, we); // records.js
   const rows = sets.map((s, i) => {
     const prev = last?.sets[i];
@@ -278,7 +279,7 @@ function entryCard(w, we) {
   return `
     <article class="card entry" data-we="${we.id}">
       <div class="entry-head">
-        <div class="ex-title">
+        <div class="ex-title" data-action="entry-history" data-ex="${we.exerciseId}" role="button" aria-label="Show history of this exercise">
           ${thumb(ex)}
           <div><h3>${esc(exerciseName(we.exerciseId))}</h3>
           ${ex?.primaryMuscle ? `<span class="sub">${MUSCLES[ex.primaryMuscle]}</span>` : ''}</div>
@@ -286,7 +287,7 @@ function entryCard(w, we) {
         <button class="icon" data-action="entry-menu" aria-label="Options">${ICON.more}</button>
       </div>
       ${notesHtml(ex, we)}
-      <p class="lasttime">${last ? `Last time (${fmtDate(last.workout.startedAt)}) <b>${last.sets.map(fmtSet).join(' · ')}</b>` : 'No previous data'}</p>
+      <p class="lasttime"><span>${last ? `Last time (${fmtDate(last.workout.startedAt)}) <b>${last.sets.map(fmtSet).join(' · ')}</b>` : 'No previous data'}</span>${best ? `<span class="best">Best <b>${fmtSet(best)}</b></span>` : ''}</p>
       <div class="setrow head"><span>Set</span>${metric === 'duration' ? '<span></span>' : `<button class="rm-toggle" data-action="rm-toggle" aria-label="Switch between e10RM and e1RM">${RM_LABEL[ui.rmMode]}</button>`}${METRICS[metric].cols.map((c) => `<span class="${METRICS[metric].cols.length === 1 ? 'span2' : ''}">${c}</span>`).join('')}<span></span></div>
       ${rows}
       <div class="entry-foot">
@@ -318,9 +319,15 @@ function workoutCard(w) {
 }
 
 // --- Workout details (full screen) ---
+/** Workout detail and exercise history can open each other – the one opened last lies on top. */
+function raiseOverlay(sel) {
+  for (const s of ['#detail', '#exhist']) $(s).style.zIndex = s === sel ? 22 : 21;
+}
+
 function openDetail(id) {
   ui.detail = id;
   ui.detailEdit = false;
+  raiseOverlay('#detail');
   $('#detail').classList.add('open');
   renderDetail();
   $('#detail .body').scrollTop = 0;
@@ -426,8 +433,8 @@ function renderDetail() {
       return `
       <article class="card">
         <div class="entry-head">
-          <div class="ex-title">${thumb(ex)}<div><h3>${esc(exerciseName(we.exerciseId))}</h3>
-            ${ex?.primaryMuscle ? `<span class="sub">${esc(musclesText(ex))}</span>` : ''}</div></div>
+          <div class="ex-title" data-action="entry-history" data-ex="${we.exerciseId}" role="button">${thumb(ex)}<div><h3>${esc(exerciseName(we.exerciseId))}</h3>
+            ${ex?.primaryMuscle ? `<span class="sub">${esc(musclesText(ex))}</span>` : ''}</div><span class="chev">${ICON.right}</span></div>
           ${t ? `<span class="trend ${t.dir}" title="${t.title}" aria-label="${t.title}">${ICON[TREND_ICON[t.dir]]}</span>` : ''}
         </div>
         ${we.note?.trim() ? `<div class="note"><p>${esc(we.note.trim())}</p></div>` : ''}
@@ -1057,6 +1064,7 @@ document.addEventListener('click', (e) => {
       ui.tab = 'history';
       render(); scrollToTop(); break;
     }
+    case 'entry-history': if (ui.detailEdit) break; openExerciseHistory('own', el.dataset.ex); break; // settings.js
     case 'rm-toggle':
       ui.rmMode = ui.rmMode === 'e10' ? 'e1' : 'e10';
       localStorage.setItem('gymlog.rmMode', ui.rmMode);

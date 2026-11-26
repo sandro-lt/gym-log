@@ -48,23 +48,47 @@ function viewExerciseCatalogue() {
     <div id="ex-list">${exerciseListHtml()}</div>`;
 }
 
+/** The 10 most trained exercises (sessions without deloads), most first: [{ id, n }] */
+function favoriteExercises(limit = 10) {
+  const count = new Map(), recent = new Map();
+  for (const we of live('workoutExercises')) {
+    const w = data.workouts.get(we.workoutId);
+    if (!w || w.deletedAt || !w.endedAt || w.skipped || w.deload) continue;
+    if (!setsOf(we.id).some((s) => s.done)) continue;
+    const ex = data.exercises.get(we.exerciseId);
+    if (!ex || ex.deletedAt) continue;
+    count.set(ex.id, (count.get(ex.id) || 0) + 1);
+    if ((recent.get(ex.id) || '') < w.startedAt) recent.set(ex.id, w.startedAt);
+  }
+  return [...count].map(([id, n]) => ({ id, n }))
+    .sort((a, b) => b.n - a.n || recent.get(b.id).localeCompare(recent.get(a.id))).slice(0, limit);
+}
+
 function exerciseListHtml() {
-  const items = librarySearch(exerciseCatalogue(), ui.exQuery.trim());
-  if (!items.length) return `<p class="empty">Nothing found.${ui.exQuery.trim() ? ' Tap + to create it.' : ''}</p>`;
+  const q = ui.exQuery.trim();
+  const all = exerciseCatalogue();
+  const items = librarySearch(all, q);
+  if (!items.length) return `<p class="empty">Nothing found.${q ? ' Tap + to create it.' : ''}</p>`;
   const groups = [...Object.keys(MUSCLES), null].map((m) => [m, items.filter((i) => (i.primaryMuscle || null) === m)
     .sort((a, b) => a.name.localeCompare(b.name, 'en'))]).filter(([, list]) => list.length);
+  // favourites on top (only without a search – while searching the hits are what counts)
+  if (!q) {
+    const byId = new Map(all.filter((i) => i.kind === 'own').map((i) => [i.id, i]));
+    const fav = favoriteExercises().map((f) => byId.get(f.id) && { ...byId.get(f.id), times: f.n }).filter(Boolean);
+    if (fav.length) groups.unshift(['fav', fav]);
+  }
   return groups.map(([m, list]) => `
-    <h2 class="section">${m ? MUSCLES[m] : 'No primary muscle'} <small>${list.length}</small></h2>
-    <ul class="card list ex-list">${list.map((i) => {
+    <h2 class="section">${m === 'fav' ? 'Favorites' : m ? MUSCLES[m] : 'No primary muscle'} <small>${m === 'fav' ? 'most trained' : list.length}</small></h2>
+    <ul class="card list ex-list ${m === 'fav' ? 'fav' : ''}">${list.map((i, k) => {
       const last = i.kind === 'own' ? lastPerformance(i.id) : null;
       const sec = i.secondaryMuscles.map((x) => MUSCLES[x]).join(', ');
       const sub = [sec && `+ ${sec}`, i.metric === 'duration' && 'Duration'].filter(Boolean).join(' · ');
       return `<li data-exrow data-kind="${i.kind}" data-id="${i.id}">
-        ${thumb(i.ex)}
+        ${m === 'fav' ? `<span class="fav-rank">${k + 1}</span>` : ''}${thumb(i.ex)}
         <div class="grow"><b>${esc(i.name)}</b>
           ${sub ? `<span class="sub">${esc(sub)}</span>` : ''}
           ${last ? `<span class="sub">Last (${fmtDate(last.workout.startedAt)}) ${last.sets.map(fmtSet).join(' · ')}</span>` : ''}</div>
-        <span class="chev">${ICON.right}</span>
+        ${i.times ? `<span class="fav-n">${i.times}×</span>` : ''}<span class="chev">${ICON.right}</span>
       </li>`;
     }).join('')}</ul>`).join('');
 }
@@ -98,6 +122,7 @@ function deleteCatalogueItem(kind, id) {
 // ---------- Exercise history: every logged session of one exercise ----------
 function openExerciseHistory(kind, id) {
   ui.exHist = { kind, id };
+  raiseOverlay('#exhist'); // app.js
   $('#exhist').classList.add('open');
   renderExerciseHistory();
   $('#exhist .body').scrollTop = 0;
