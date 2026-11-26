@@ -2,6 +2,7 @@
  * primary muscle), backup. Loaded after app.js, library.js, plans.js, charts.js. */
 
 ui.settingsPage = null; // null | 'exercises'
+ui.exHist = null; // { kind: 'own'|'lib', id } – exercise whose history is open
 ui.exQuery = '';
 
 const ICON_DUMBBELL = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>';
@@ -40,7 +41,6 @@ function viewExerciseCatalogue() {
       <input class="search" type="search" placeholder="Search name, equipment, muscle" value="${esc(ui.exQuery)}" data-input="ex-query" autocomplete="off" enterkeyhint="search">
       <button class="btn primary add-ex" data-action="ex-new" aria-label="New exercise">+</button>
     </div>
-    <p class="hint ex-hint">Tap for history · hold to edit or delete</p>
     <div id="ex-list">${exerciseListHtml()}</div>`;
 }
 
@@ -85,28 +85,10 @@ function deleteCatalogueItem(kind, id) {
   if (!confirm(`Delete “${item.name}”?${used ? ' Past workouts stay in your history.' : ''}`)) return;
   // a library entry is hidden by a deleted copy, so it stays gone (and syncs later)
   softDelete('exercises', kind === 'own' ? item.ex : exerciseFromLibrary(id));
-  closeSheet();
+  closeEditor();
+  closeExerciseHistory();
   render();
   toast(`${item.name} deleted`);
-}
-
-function openExerciseMenu(kind, id) {
-  ui.sheetMode = 'ex-menu';
-  ui.sheetEx = { kind, id };
-  $('#sheet').classList.add('open');
-  renderSheet();
-}
-
-function renderExerciseMenu() {
-  const item = catalogueItem(ui.sheetEx.kind, ui.sheetEx.id);
-  if (!item) return closeSheet();
-  $('#sheet .body').innerHTML = `
-    <div class="sheet-head"><h2 class="ex-menu-title">${thumb(item.ex, 'sm')}<span>${esc(item.name)}</span></h2>
-      <button class="btn text" data-action="close-sheet">Done</button></div>
-    <div class="menu">
-      <button data-action="ex-edit">${ICON.note}<span>Edit</span></button>
-      <button class="danger" data-action="ex-delete">${ICON.trash}<span>Delete</span></button>
-    </div>`;
 }
 
 // ---------- Exercise history: every logged session of one exercise ----------
@@ -127,6 +109,10 @@ function exerciseSessions(exId) {
 }
 
 function renderExerciseHistory() {
+  if (ui.exHist?.kind === 'lib') { // saved from the editor -> it is an own exercise now
+    const own = live('exercises').find((e) => e.libraryId === ui.exHist.id);
+    if (own) ui.exHist = { kind: 'own', id: own.id };
+  }
   const item = ui.exHist && catalogueItem(ui.exHist.kind, ui.exHist.id);
   if (!item) return closeExerciseHistory();
   const ex = item.ex, isDur = metricOf(ex) === 'duration';
@@ -148,7 +134,8 @@ function renderExerciseHistory() {
   }
   $('#exhist .body').innerHTML = `
     <header class="ed-head">
-      <button class="btn text back" data-action="exh-close">${ICON.left}Exercises</button><b></b><span></span>
+      <button class="btn text back" data-action="exh-close">${ICON.left}Exercises</button><b></b>
+      <button class="btn text strong" data-action="exh-edit">Edit</button>
     </header>
     <div class="exh-title">${thumb(ex)}<div><h1>${esc(item.name)}</h1>
       ${ex.primaryMuscle ? `<span class="sub">${esc(musclesText(ex))}</span>` : ''}</div></div>
@@ -170,44 +157,8 @@ function renderExerciseHistory() {
     }).join('') : '<p class="empty">Not trained yet. Sessions show up here once you log this exercise in a workout.</p>'}`;
 }
 
-// ---------- Long press on a list row ----------
-let press = null;
-const LONG_PRESS_MS = 450;
-function cancelPress() {
-  if (!press) return;
-  clearTimeout(press.timer);
-  press.row.classList.remove('pressing');
-  if (!press.fired) press = null;
-}
-document.addEventListener('pointerdown', (e) => {
-  const row = e.target.closest('[data-exrow]');
-  if (!row || e.button > 0) return;
-  press = { row, x: e.clientX, y: e.clientY, fired: false };
-  row.classList.add('pressing');
-  press.timer = setTimeout(() => {
-    press.fired = true;
-    row.classList.remove('pressing');
-    if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(10); // Android only; iOS has no vibration API
-    openExerciseMenu(row.dataset.kind, row.dataset.id);
-  }, LONG_PRESS_MS);
-});
-document.addEventListener('pointermove', (e) => {
-  if (press && !press.fired && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelPress();
-});
-document.addEventListener('pointerup', cancelPress);
-document.addEventListener('pointercancel', cancelPress);
-document.addEventListener('contextmenu', (e) => {
-  const row = e.target.closest('[data-exrow]');
-  if (!row) return;
-  e.preventDefault();
-  if (!press?.fired) openExerciseMenu(row.dataset.kind, row.dataset.id); // right click / other platforms
-});
-
 // ---------- Events ----------
 document.addEventListener('click', (e) => {
-  // the click that ends a long press must not also open the editor
-  if (press?.fired) { press = null; e.preventDefault(); e.stopImmediatePropagation(); return; }
-  press = null;
   const tab = e.target.closest('.tabbar button');
   if (tab?.dataset.tab === 'settings' && ui.tab === 'settings') ui.settingsPage = null; // tap again -> back to the menu
   const row = e.target.closest('[data-exrow]');
@@ -217,8 +168,7 @@ document.addEventListener('click', (e) => {
   switch (el.dataset.action) {
     case 'settings-page': ui.settingsPage = el.dataset.page || null; ui.exQuery = ''; render(); window.scrollTo(0, 0); break;
     case 'ex-new': openEditor(null, { name: ui.exQuery }); break;
-    case 'ex-edit': closeSheet(); editCatalogueItem(ui.sheetEx.kind, ui.sheetEx.id); break;
-    case 'ex-delete': deleteCatalogueItem(ui.sheetEx.kind, ui.sheetEx.id); break;
+    case 'exh-edit': editCatalogueItem(ui.exHist.kind, ui.exHist.id); break;
     case 'exh-close': closeExerciseHistory(); break;
     case 'exh-open-workout': openDetail(el.dataset.wid); break;
   }

@@ -568,14 +568,9 @@ h3.mg { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-
 .settings-menu button small { margin-left: auto; color: var(--muted); font-size: 15px; font-weight: 500; }
 .settings-menu button .chev { color: var(--muted); display: flex; margin-left: 0; }
 .settings-menu button svg:first-child { color: var(--accent); }
-.ex-search { margin-bottom: 6px; }
+.ex-search { margin-bottom: 4px; }
 .add-ex { width: 48px; height: 48px; flex: none; padding: 0; font-size: 28px; font-weight: 500; line-height: 1; display: grid; place-items: center; }
-.ex-hint { margin: 0 4px 4px; }
 h2.section small { font-weight: 500; color: var(--muted); margin-left: 4px; }
-.ex-list li { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: background .15s, transform .15s; }
-.ex-list li.pressing { background: var(--surface-2); transform: scale(.98); transition-duration: .45s; }
-.ex-menu-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.ex-menu-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .exh-title { display: flex; align-items: center; gap: 14px; margin: 4px 0 16px; }
 .exh-title h1 { font-size: 26px; line-height: 1.15; }
 .exh-card { cursor: pointer; }

@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.10.1';
+const APP_VERSION = '1.11';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -510,7 +510,6 @@ function saveNote(remove) {
 function renderSheet() {
   if (ui.sheetMode.startsWith('plan')) return renderPlanSheet(); // plans.js
   if (ui.sheetMode.startsWith('chart')) return renderChartSheet(); // charts.js
-  if (ui.sheetMode === 'ex-menu') return renderExerciseMenu(); // settings.js
   if (ui.sheetMode === 'menu') return renderEntryMenu();
   if (ui.sheetMode === 'note') return renderNoteEditor();
   const q = ui.sheetQuery.trim().toLowerCase();
@@ -638,7 +637,7 @@ function renderEditor() {
         <button class="${e.metric === k ? 'on' : ''}" data-action="editor-metric" data-metric="${k}">${m.label}
           <small>${m.hint}</small></button>`).join('')}
     </div>
-    ${e.id ? '<button class="btn text danger wide" data-action="editor-delete">Delete exercise</button>' : ''}
+    ${e.id || e.libraryId ? '<button class="btn text danger wide" data-action="editor-delete">Delete exercise</button>' : ''}
   `;
 }
 
@@ -1039,11 +1038,10 @@ document.addEventListener('click', (e) => {
     case 'editor-metric': ui.editor.metric = el.dataset.metric; rerenderEditorKeepScroll(); break;
     case 'muscle': tapMuscle(el.dataset.id); break;
     case 'editor-image-remove': ui.editor.image = null; rerenderEditorKeepScroll(); break;
-    case 'editor-delete': {
-      const ex = data.exercises.get(ui.editor.id);
-      if (confirm(`Delete “${ex.name}”? Past workouts stay in your history.`)) { softDelete('exercises', ex); closeEditor(); render(); }
+    case 'editor-delete':
+      // settings.js: works for own exercises and unused library entries, closes the history too
+      deleteCatalogueItem(ui.editor.id ? 'own' : 'lib', ui.editor.id || ui.editor.libraryId);
       break;
-    }
     case 'edit-exercise': openEditor(data.exercises.get(el.dataset.ex)); break;
     case 'toggle-set': toggleSet(el.closest('.setrow')); break;
     case 'pick': openPicker(el.closest('.setrow').dataset.set, el.dataset.field); break;
