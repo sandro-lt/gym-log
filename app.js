@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.15';
+const APP_VERSION = '1.16';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -183,7 +183,7 @@ function weekStrip() {
 // Small exercise image, or first letter as placeholder
 function thumb(ex, cls = '') {
   if (ex?.image) return `<img class="thumb ${cls}" src="${ex.image}" alt="">`;
-  if (ex?.primaryMuscle && MUSCLES[ex.primaryMuscle]) return `<span class="thumb mus ${cls}">${BODY.thumb(ex.primaryMuscle)}</span>`;
+  if (ex?.primaryMuscle && MUSCLES[ex.primaryMuscle]) return `<img class="thumb mus ${cls}" src="${BODY.thumbUrl(ex.primaryMuscle, ex.secondaryMuscles || [])}" alt="">`;
   return `<span class="thumb ph ${cls}">${esc((ex?.name || '?').trim().charAt(0).toUpperCase() || '?')}</span>`;
 }
 const musclesText = (ex) => !ex?.primaryMuscle ? '' :

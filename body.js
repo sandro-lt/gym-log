@@ -1,70 +1,140 @@
-/* Stylised body figure (own drawing) used for muscle thumbnails and the muscle map.
- * Coordinates: viewBox 0 0 60 120, figure centred on x = 30.
- * Shapes are drawn for the figure's left half and mirrored, unless marked as centre ('c').
- */
+/* Body figure for muscle thumbnails and the muscle map – plate style (prototype D).
+ * Proportions and field layout follow the reference the user supplied; all shapes are redrawn
+ * as own point lists. Coordinates: reference pixels, figure centred on x = 338, left half
+ * drawn and mirrored. Only muscles that exist as groups in the app (plus a few grey fillers).
+ * Images are built once as SVG data URLs, so long lists stay fast. */
 const BODY = (() => {
-  const MIRROR = 'matrix(-1 0 0 1 60 0)';
-
-  const BASE = [
-    ['c', '<ellipse cx="30" cy="9" rx="5.5" ry="6.5"/>'],
-    ['c', '<rect x="26.5" y="13.5" width="7" height="7" rx="2"/>'],
-    ['c', '<path d="M17 22 Q30 18.5 43 22 L41 49 Q30 52 19 49 Z"/>'],
-    ['c', '<path d="M19 47.5 Q30 50.5 41 47.5 L42.6 58 L17.4 58 Z"/>'],
-    ['l', '<circle cx="15.6" cy="26" r="5"/>'],
-    ['l', '<path d="M10.9 27.5 L17.6 27.5 L17.1 45 L11.4 45 Z"/>'],
-    ['l', '<path d="M11.2 44 L16.9 44 L15.1 59 L11 59 Z"/>'],
-    ['l', '<ellipse cx="12.9" cy="62" rx="2.3" ry="3.1"/>'],
-    ['l', '<path d="M17.4 56 L29.6 56 L28.4 86 L20 86 Q16.9 70 17.4 56 Z"/>'],
-    ['l', '<path d="M20 85 L28.4 85 L27.2 112.5 L21.6 112.5 Q18.9 98 20 85 Z"/>'],
-    ['l', '<path d="M21.4 112 L27.4 112 L28.2 117 L19.8 117 Z"/>'],
+  const CX = 338;
+  // body outline, left half from the top centre to the crotch
+  const OUTLINE = [[338,50],[318,53.5],[304.5,64],[293.5,80],[297.5,100],[296.5,116],[299.5,130],[305.5,142.5],[311.5,156.5],[306.5,168.5],[293.5,175],[267,187.5],[240,198.5],[224,212],[214,231.5],[211.5,256],[202.5,285],[198.5,315],[193.5,341.5],[184.5,361.5],[175.5,389.5],[171.5,420.5],[169.5,449],[163.5,470.5],[155.5,488.5],[154.5,507.5],[162.5,516.5],[178,517.5],[192.5,511],[207.5,505],[211.5,486],[202.5,470],[200,442],[219,403],[232,370.5],[238,345.5],[249.5,320],[253,290],[256,272],[259,300],[271.5,339.5],[274.5,380],[268.5,415.5],[264.5,446],[261.5,476.5],[255.5,510.5],[248.5,550],[246.5,590.5],[253.5,625.5],[261.5,655],[259.5,684.5],[253.5,715],[251.5,750],[258.5,790],[268.5,829.5],[269,870],[267.5,890],[254.5,906.5],[245.5,918],[250,930.5],[298.5,928],[296.5,905],[296.5,884.5],[296.5,858.5],[306.5,804],[318.5,750],[315.5,700],[310.5,665],[319.5,630],[330.5,585],[335.5,540],[338,505]];
+  // [id, app muscle group (null = grey filler), fibre angle, points of the left half]
+  const FRONT = [
+    ['trap', 'traps', 160, [[310.5,171.5],[313.5,172.5],[314.5,181.5],[319.5,196.5],[287.5,197.5],[273.5,194.5],[270.5,191.5]]],
+    ['lat', 'lats', 75, [[258.5,266.5],[268.5,271.5],[277.5,283.5],[275.5,331.5],[273.5,332.5],[263.5,309.5],[256.5,275.5],[256.5,267.5]]],
+    ['obl', 'abs', 60, [[283.5,314.5],[285.5,316.5],[288.5,329.5],[295.5,396.5],[302.5,416.5],[312.5,435.5],[311.5,441.5],[306.5,441.5],[303.5,439.5],[282.5,428.5],[275.5,420.5],[275.5,414.5],[280.5,398.5],[279.5,339.5]]],
+    ['abs1', 'abs', 90, [[305.5,282.5],[328.5,282.5],[333.5,283.5],[336.5,286.5],[335.5,305.5],[332.5,308.5],[317.5,310.5],[293.5,310.5],[284.5,300.5],[285.5,287.5],[291.5,284.5]]],
+    ['abs2', 'abs', 90, [[322.5,313.5],[332.5,314.5],[336.5,317.5],[336.5,338.5],[333.5,341.5],[326.5,343.5],[310.5,343.5],[303.5,343.5],[296.5,339.5],[293.5,331.5],[293.5,321.5],[302.5,315.5]]],
+    ['abs3', 'abs', 90, [[316.5,346.5],[330.5,347.5],[336.5,351.5],[336.5,369.5],[329.5,373.5],[319.5,373.5],[304.5,372.5],[300.5,367.5],[298.5,359.5],[300.5,349.5]]],
+    ['abs4', 'abs', 90, [[311.5,377.5],[330.5,377.5],[336.5,381.5],[336.5,453.5],[334.5,460.5],[330.5,460.5],[325.5,455.5],[318.5,433.5],[304.5,401.5],[303.5,383.5],[307.5,378.5]]],
+    ['pec', 'chest', 12, [[294.5,200.5],[308.5,200.5],[327.5,203.5],[335.5,207.5],[337.5,212.5],[337,272],[334,282.5],[322,289],[305,291],[289,287.5],[275,279],[262,268],[243.5,256.5],[250.5,252.5],[261.5,240.5],[279.5,206.5],[285.5,202.5]]],
+    ['bi', 'biceps', 90, [[227.5,259.5],[238.5,259.5],[247.5,265.5],[252.5,275.5],[253.5,293.5],[250.5,307.5],[244.5,321.5],[234.5,335.5],[223.5,343.5],[214.5,344.5],[208.5,339.5],[205.5,333.5],[203.5,324.5],[203.5,301.5],[206.5,284.5],[211.5,271.5],[220.5,262.5]]],
+    ['brr', 'forearms', 95, [[201.5,343.5],[208.5,349.5],[205.5,372.5],[205.5,390.5],[208.5,401.5],[208.5,410.5],[196.5,436.5],[193.5,439.5],[185.5,441.5],[178.5,440.5],[176.5,437.5],[178.5,399.5],[183.5,376.5],[190.5,358.5],[196.5,347.5]]],
+    ['flex', 'forearms', 100, [[229.5,345.5],[232.5,347.5],[232.5,350.5],[224.5,381.5],[215.5,399.5],[211.5,396.5],[209.5,387.5],[209.5,369.5],[212.5,354.5],[215.5,350.5]]],
+    ['adelt', 'front_delts', 70, [[279.5,199],[264,197.5],[250,201],[238,222],[227,243],[219,262],[216,277],[223,268],[234,259],[244,250],[252,236],[259,220],[268,205]]],
+    ['ldelt', 'side_delts', 80, [[247,200],[235,222],[224,243],[216,262],[214,276],[212.5,266],[215,250],[218.5,231],[226,214],[236,203.5]]],
+    ['tfl', 'abductors', 75, [[272.5,431.5],[276.5,431.5],[281.5,434.5],[286.5,443.5],[263.5,510.5],[260.5,512.5],[259.5,509.5],[267.5,476.5],[270.5,434.5]]],
+    ['rf', 'quads', 90, [[293.5,445.5],[297.5,448.5],[300.5,463.5],[306.5,514.5],[307.5,548.5],[305.5,572.5],[300.5,591.5],[293.5,601.5],[284.5,605.5],[276.5,603.5],[271.5,597.5],[267.5,581.5],[266.5,552.5],[269.5,516.5],[274.5,491.5],[284.5,461.5]]],
+    ['vl', 'quads', 95, [[263.5,515.5],[260.5,555.5],[261.5,582.5],[265.5,596.5],[274.5,608.5],[277.5,615.5],[276.5,625.5],[271.5,629.5],[267.5,629.5],[260.5,627.5],[256.5,620.5],[251.5,595.5],[252.5,545.5],[257.5,524.5]]],
+    ['vm', 'quads', 60, [[312.5,539.5],[316.5,544.5],[325.5,569.5],[325.5,595.5],[316.5,627.5],[307.5,638.5],[299.5,640.5],[296.5,640.5],[287.5,634.5],[284.5,623.5],[288.5,613.5],[299.5,602.5],[305.5,593.5],[310.5,572.5]]],
+    ['add', 'adductors', 110, [[305.5,456.5],[313.5,462.5],[322.5,474.5],[334.5,496.5],[334.5,514.5],[329.5,562.5],[311.5,523.5],[309.5,491.5],[304.5,464.5]]],
+    ['gastm', 'calves', 90, [[304.5,688.5],[308.5,691.5],[312.5,704.5],[313.5,752.5],[307.5,787.5],[301.5,803.5],[299.5,806.5],[298.5,805.5],[295.5,799.5],[292.5,780.5],[291.5,737.5],[296.5,699.5],[300.5,690.5]]],
+    ['ta', null, 92, [[266.5,689.5],[268.5,691.5],[269.5,699.5],[268.5,762.5],[276.5,816.5],[275.5,832.5],[261.5,780.5],[256.5,740.5],[258.5,717.5],[263.5,695.5]]],
+  ];
+  const BACK = [
+    ['trap1', 'traps', 155, [[332.5,153.5],[334.5,153.5],[333.5,196.5],[294.5,190.5],[273.5,190.5],[272.5,189.5],[274.5,187.5],[291.5,178.5],[319.5,167.5]]],
+    ['trap2', 'upper_back', 50, [[277.5,193.5],[301.5,194.5],[317.5,197.5],[327.5,200.5],[334.5,205.5],[334.5,282.5],[333.5,294.5],[327.5,294.5],[313.5,283.5],[300.5,266.5],[283.5,230.5],[263.5,200.5],[265.5,194.5]]],
+    ['ldeltb', 'side_delts', 100, [[255.5,195.5],[260.5,195.5],[259.5,199.5],[243.5,217.5],[214.5,259.5],[213.5,256.5],[215.5,237.5],[227.5,212.5],[238.5,203.5]]],
+    ['rdelt', 'rear_delts', 40, [[259.5,207.5],[262.5,207.5],[272.5,219.5],[273.5,225.5],[271.5,229.5],[250.5,250.5],[231.5,258.5],[219.5,259.5],[221.5,253.5],[251.5,214.5]]],
+    ['infra', 'upper_back', 160, [[275.5,230.5],[278.5,230.5],[281.5,234.5],[293.5,260.5],[293.5,265.5],[275.5,263.5],[262.5,262.5],[249.5,258.5],[250.5,255.5],[259.5,248.5]]],
+    ['trilong', 'triceps', 90, [[241.5,258.5],[245.5,259.5],[248.5,265.5],[251.5,285.5],[251.5,299.5],[243.5,320.5],[234.5,338.5],[230.5,342.5],[228.5,342.5],[228.5,330.5],[222.5,316.5],[222.5,304.5],[232.5,269.5],[235.5,263.5]]],
+    ['trilat', 'triceps', 90, [[224.5,262.5],[227.5,264.5],[228.5,268.5],[218.5,308.5],[215.5,316.5],[208.5,324.5],[203.5,336.5],[201.5,338.5],[200.5,334.5],[200.5,309.5],[204.5,281.5],[208.5,271.5],[213.5,265.5]]],
+    ['latb', 'lats', 60, [[254.5,264.5],[276.5,268.5],[294.5,269.5],[300.5,273.5],[316.5,292.5],[333.5,303.5],[333.5,349.5],[326.5,359.5],[307.5,376.5],[286.5,390.5],[279.5,391.5],[277.5,388.5],[275.5,346.5],[258.5,298.5],[252.5,271.5],[252.5,265.5]]],
+    ['ext', 'forearms', 95, [[197.5,346.5],[200.5,347.5],[205.5,354.5],[204.5,390.5],[207.5,407.5],[196.5,433.5],[191.5,438.5],[183.5,440.5],[176.5,440.5],[173.5,435.5],[175.5,403.5],[180.5,379.5],[186.5,361.5],[191.5,351.5]]],
+    ['ext2', 'forearms', 100, [[223.5,350.5],[229.5,351.5],[225.5,374.5],[215.5,397.5],[213.5,399.5],[211.5,398.5],[208.5,391.5],[207.5,378.5],[209.5,359.5],[212.5,354.5]]],
+    ['lowb', 'lower_back', 90, [[331.5,361.5],[334.5,362.5],[334.5,410.5],[331.5,413.5],[314.5,411.5],[300.5,408.5],[291.5,404.5],[289.5,402.5],[289.5,398.5],[298.5,388.5]]],
+    ['gmax', 'glutes', 35, [[287.5,412.5],[300.5,412.5],[317.5,416.5],[329.5,423.5],[333.5,429.5],[333.5,482.5],[327.5,490.5],[313.5,496.5],[295.5,498.5],[281.5,495.5],[273.5,489.5],[269.5,481.5],[268.5,446.5],[270.5,431.5],[277.5,417.5]]],
+    ['vlb', null, 95, [[263.5,488.5],[266.5,488.5],[269.5,491.5],[270.5,501.5],[261.5,533.5],[251.5,586.5],[249.5,587.5],[248.5,584.5],[250.5,549.5],[258.5,503.5]]],
+    ['addb', 'adductors', 95, [[327.5,496.5],[331.5,503.5],[330.5,531.5],[325.5,572.5],[323.5,578.5],[321.5,578.5],[319.5,574.5],[312.5,549.5],[308.5,508.5],[311.5,502.5]]],
+    ['bfem', 'hams', 95, [[278.5,499.5],[285.5,502.5],[281.5,549.5],[282.5,628.5],[273.5,639.5],[265.5,654.5],[263.5,654.5],[256.5,628.5],[251.5,599.5],[258.5,579.5],[264.5,541.5],[270.5,516.5],[275.5,501.5]]],
+    ['semi', 'hams', 85, [[295.5,502.5],[300.5,502.5],[304.5,505.5],[304.5,521.5],[308.5,558.5],[322.5,594.5],[320.5,610.5],[306.5,653.5],[305.5,655.5],[303.5,654.5],[287.5,625.5],[286.5,531.5],[289.5,509.5]]],
+    ['gastl', 'calves', 90, [[280.5,641.5],[282.5,642.5],[283.5,646.5],[281.5,752.5],[277.5,763.5],[273.5,767.5],[268.5,768.5],[263.5,767.5],[255.5,757.5],[252.5,739.5],[253.5,723.5],[270.5,659.5],[276.5,645.5]]],
+    ['gastmb', 'calves', 90, [[289.5,642.5],[293.5,645.5],[297.5,653.5],[304.5,673.5],[310.5,699.5],[313.5,722.5],[312.5,760.5],[310.5,766.5],[305.5,771.5],[300.5,772.5],[292.5,768.5],[286.5,753.5],[286.5,694.5]]],
+    ['soll', 'calves', 80, [[257.5,770.5],[260.5,770.5],[265.5,781.5],[273.5,813.5],[276.5,836.5],[275.5,864.5],[274.5,865.5],[273.5,863.5],[273.5,847.5],[270.5,828.5],[258.5,781.5]]],
+    ['solm', 'calves', 100, [[304.5,775.5],[308.5,776.5],[308.5,780.5],[296.5,818.5],[289.5,864.5],[288.5,843.5],[292.5,813.5],[299.5,784.5]]],
   ];
 
-  // muscle id -> { view, shapes, crop }
-  const UPPER = '5 3 50 50', ARMS = '3 15 54 54', CORE = '9 20 42 42', HIPS = '7 38 46 46', LEGS = '6 50 48 48', CALVES = '8 78 44 44';
-  const MUSCLES = {
-    traps:       { view: 'back',  crop: UPPER, shapes: [['c', '<path d="M30 15.5 L39.5 22.4 L33.4 25 L30 35.5 L26.6 25 L20.5 22.4 Z"/>']] },
-    front_delts: { view: 'front', crop: UPPER, shapes: [['l', '<ellipse cx="17.6" cy="26.6" rx="2.6" ry="4.4"/>']] },
-    side_delts:  { view: 'front', crop: UPPER, shapes: [['l', '<ellipse cx="13.2" cy="26.4" rx="2.4" ry="4.4"/>']] },
-    rear_delts:  { view: 'back',  crop: UPPER, shapes: [['l', '<ellipse cx="15.4" cy="26.3" rx="3.8" ry="4"/>']] },
-    chest:       { view: 'front', crop: UPPER, shapes: [['l', '<path d="M19.3 24 Q24.6 22.2 29.5 23.8 L29.5 32.4 Q24 34.6 19.9 31.2 Z"/>']] },
-    upper_back:  { view: 'back',  crop: UPPER, shapes: [['l', '<path d="M20.2 25.4 L26.4 25.2 L28.3 32.8 L21.6 31.6 Z"/>']] },
-    lats:        { view: 'back',  crop: UPPER, shapes: [['l', '<path d="M19.6 32.2 L26.7 33.6 L26.7 45.2 L22.1 43.4 Q19.4 37.4 19.6 32.2 Z"/>']] },
-    lower_back:  { view: 'back',  crop: CORE,  shapes: [['l', '<rect x="27.1" y="37" width="2.6" height="12" rx="1.3"/>']] },
-    abs:         { view: 'front', crop: CORE,  shapes: [['c', '<rect x="25.3" y="34.4" width="9.4" height="14.2" rx="2.6"/>']] },
-    biceps:      { view: 'front', crop: ARMS,  shapes: [['l', '<ellipse cx="14.5" cy="36.6" rx="2.7" ry="5.6"/>']] },
-    triceps:     { view: 'back',  crop: ARMS,  shapes: [['l', '<ellipse cx="14.2" cy="36.6" rx="2.7" ry="5.9"/>']] },
-    forearms:    { view: 'front', crop: ARMS,  shapes: [['l', '<ellipse cx="13.7" cy="50.8" rx="2.3" ry="6"/>']] },
-    glutes:      { view: 'back',  crop: HIPS,  shapes: [['l', '<ellipse cx="24.6" cy="55.4" rx="5" ry="5.1"/>']] },
-    quads:       { view: 'front', crop: LEGS,  shapes: [['l', '<ellipse cx="23.4" cy="70.5" rx="4" ry="12.6"/>']] },
-    hams:        { view: 'back',  crop: LEGS,  shapes: [['l', '<ellipse cx="23.6" cy="73" rx="3.9" ry="10.6"/>']] },
-    adductors:   { view: 'front', crop: LEGS,  shapes: [['l', '<path d="M29.3 57.2 L26.9 59 L27.9 72.5 Q29.1 66 29.3 57.2 Z"/>']] },
-    abductors:   { view: 'front', crop: LEGS,  shapes: [['l', '<path d="M17.6 56.6 L20.1 58 L19.7 66.6 Q17.8 62 17.6 56.6 Z"/>']] },
-    calves:      { view: 'back',  crop: CALVES, shapes: [['l', '<ellipse cx="23.4" cy="94.5" rx="3.3" ry="7.2"/>']] },
+  // zoom window per group: [x, y, size] in figure coordinates
+  const CROPS = {
+    traps: ['back', 253, 110, 170], upper_back: ['back', 228, 160, 220], front_delts: ['front', 180, 170, 150],
+    side_delts: ['front', 168, 170, 150], rear_delts: ['back', 170, 160, 160], chest: ['front', 228, 150, 220],
+    lats: ['back', 218, 220, 240], lower_back: ['back', 258, 300, 160], abs: ['front', 228, 260, 220],
+    biceps: ['front', 150, 220, 160], triceps: ['back', 150, 220, 160], forearms: ['front', 128, 310, 150],
+    glutes: ['back', 233, 350, 210], quads: ['front', 218, 420, 240], hams: ['back', 218, 450, 240],
+    adductors: ['front', 248, 420, 180], abductors: ['front', 190, 380, 180], calves: ['back', 218, 630, 240],
   };
 
-  const draw = ([side, svg], cls) => {
-    const shape = cls ? svg.replace('/>', ` class="${cls}"/>`) : svg;
-    return side === 'c' ? shape : shape + `<g transform="${MIRROR}">${shape}</g>`;
-  };
+  /** Smooth closed path through points (Catmull-Rom as cubic Béziers). */
+  function smooth(p) {
+    const n = p.length, f = (v) => Math.round(v * 10) / 10;
+    let d = `M${p[0][0]} ${p[0][1]}`;
+    for (let i = 0; i < n; i++) {
+      const a = p[(i - 1 + n) % n], b = p[i], c = p[(i + 1) % n], e = p[(i + 2) % n];
+      d += `C${f(b[0] + (c[0] - a[0]) / 6)} ${f(b[1] + (c[1] - a[1]) / 6)} ${f(c[0] - (e[0] - b[0]) / 6)} ${f(c[1] - (e[1] - b[1]) / 6)} ${c[0]} ${c[1]}`;
+    }
+    return d + 'Z';
+  }
+  const MIRROR = `translate(${2 * CX} 0) scale(-1 1)`;
+  const SILHOUETTE = smooth([...OUTLINE, ...OUTLINE.slice(1, -1).reverse().map(([x, y]) => [2 * CX - x, y])]);
+  const PATHS = new Map([...FRONT, ...BACK].map(([id, , , pts]) => [id, smooth(pts)]));
 
-  /** states: { muscleId: 'hl' | 'primary' | 'secondary' } */
-  function svg(view, states = {}, viewBox = '0 0 60 120', cls = '') {
-    const muscles = Object.entries(MUSCLES)
-      .filter(([, m]) => m.view === view)
-      .map(([id, m]) => m.shapes.map((s) => draw(s, 'mu ' + (states[id] || ''))).join(''))
-      .join('');
-    return `<svg class="fig ${cls}" viewBox="${viewBox}" aria-hidden="true">
-      <g class="base">${BASE.map((s) => draw(s)).join('')}</g>${muscles}</svg>`;
+  const DEFS = `
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#262b33"/><stop offset="1" stop-color="#16191e"/></linearGradient>
+    <linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#30353d"/><stop offset="1" stop-color="#252a30"/></linearGradient>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#535a66"/><stop offset="1" stop-color="#383e47"/></linearGradient>
+    <radialGradient id="p" cx=".3" cy=".25" r=".95"><stop offset="0" stop-color="#efffa0"/><stop offset=".45" stop-color="#c6f432"/><stop offset="1" stop-color="#7a9c10"/></radialGradient>
+    <linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fa83a"/><stop offset="1" stop-color="#5d6e22"/></linearGradient>
+    <filter id="gl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>`;
+  const fid = (a) => `f${a}`;
+  const fibreDefs = (angles) => [...angles].map((a) => `
+    <pattern id="${fid(a)}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(${a})">
+      <path d="M0 0H7" stroke="#4a6006" stroke-width="1.3" opacity=".55"/></pattern>`).join('');
+  const both = (d, attrs) => `<path d="${d}" ${attrs}/><path d="${d}" ${attrs} transform="${MIRROR}"/>`;
+
+  /** Figure markup for one view; groups: { group: 'p' | 's' } (primary / secondary). */
+  function figure(view, groups) {
+    const angles = new Set();
+    let base = `<path d="${SILHOUETTE}" fill="url(#sk)" stroke="#121418" stroke-width="3" stroke-linejoin="round"/>`, glow = '';
+    for (const [id, group, angle] of view === 'front' ? FRONT : BACK) {
+      const st = group && groups[group], d = PATHS.get(id);
+      base += both(d, `fill="${st === 'p' ? 'url(#p)' : st === 's' ? 'url(#s)' : 'url(#m)'}" stroke="#121418" stroke-width="3" stroke-linejoin="round"`);
+      if (st === 'p') { angles.add(angle); base += both(d, `fill="url(#${fid(angle)})"`); glow += both(d, ''); }
+    }
+    return { defs: fibreDefs(angles), body: `${glow ? `<g fill="#c6f432" opacity=".5" filter="url(#gl)">${glow}</g>` : ''}${base}` };
+  }
+
+  const dataUrl = (svg) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace(/\s+/g, ' '));
+  const cache = new Map();
+  const states = (primary, secondary) => Object.assign(Object.fromEntries(secondary.map((g) => [g, 's'])), primary ? { [primary]: 'p' } : {});
+
+  /** Square thumbnail zoomed onto a muscle group (secondary groups of the same view dimmed). */
+  function thumbUrl(id, secondary = []) {
+    const key = `t:${id}:${secondary.join(',')}`;
+    if (cache.has(key)) return cache.get(key);
+    const [view, x, y, size] = CROPS[id];
+    const f = figure(view, states(id, secondary));
+    const url = dataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs>${DEFS}${f.defs}</defs>
+      <rect width="120" height="120" fill="url(#bg)"/><svg width="120" height="120" viewBox="${x} ${y} ${size} ${size}">${f.body}</svg></svg>`);
+    cache.set(key, url);
+    return url;
+  }
+
+  /** Full figure (front or back) with primary and secondary muscle groups. */
+  function figureUrl(view, primary, secondary = []) {
+    const key = `f:${view}:${primary}:${secondary.join(',')}`;
+    if (cache.has(key)) return cache.get(key);
+    const f = figure(view, states(primary, secondary));
+    const url = dataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="136 44 404 894"><defs>${DEFS}${f.defs}</defs>${f.body}</svg>`);
+    cache.set(key, url);
+    return url;
   }
 
   return {
-    /** Small cropped figure with one muscle highlighted (for picker tiles). */
-    thumb: (id) => svg(MUSCLES[id].view, { [id]: 'hl' }, MUSCLES[id].crop, 'thumb-fig'),
-    /** Front + back full figures showing primary and secondary muscles. */
-    map(primary, secondary = []) {
-      const st = Object.fromEntries(secondary.map((m) => [m, 'secondary']));
-      if (primary) st[primary] = 'primary';
-      return svg('front', st, '4 0 52 120', 'map-fig') + svg('back', st, '4 0 52 120', 'map-fig');
-    },
+    GROUPS: CROPS,
+    thumbUrl,
+    /** Tile image for the muscle picker. */
+    thumb: (id) => `<img class="fig thumb-fig" src="${thumbUrl(id)}" alt="">`,
+    /** Front + back full figures showing primary and secondary muscle groups. */
+    map: (primary, secondary = []) => ['front', 'back']
+      .map((v) => `<img class="fig map-fig" src="${figureUrl(v, primary, secondary)}" alt="${v === 'front' ? 'Front' : 'Back'}">`).join(''),
   };
 })();
