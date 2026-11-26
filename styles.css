@@ -576,3 +576,6 @@ h2.section small { font-weight: 500; color: var(--muted); margin-left: 4px; }
 .exh-card { cursor: pointer; }
 .exh-card h3 { margin: 0; font-size: 17px; }
 .exh-card .entry-head { align-items: flex-start; }
+.swap-from { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 12px; border-radius: 12px; background: var(--surface-2); }
+.swap-from b { display: block; }
+.swap-from .sub { font-size: 13px; }

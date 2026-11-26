@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.11';
+const APP_VERSION = '1.12';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -98,7 +98,7 @@ const ui = {
   calDay: dayKey(new Date()),
   sheetSets: 3,
   sheetQuery: '',
-  sheetMode: 'pick', // 'pick' | 'menu' | 'note'
+  sheetMode: 'pick', // 'pick' | 'menu' | 'note' | 'swap' | plan-* | chart-*
   sheetWorkout: null, // workout that "Add exercise" adds to
   sheetWe: null, // workout exercise the menu / note belongs to
   noteText: '',
@@ -120,6 +120,7 @@ function toast(msg) {
 }
 
 const ICON = {
+  swap: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M13.5 4.5L17 8l-3.5 3.5M20 16H7M10.5 12.5L7 16l3.5 3.5"/></svg>',
   pin: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 6 4 4H6l4-4z"/><path d="M12 13v8"/></svg>',
   note: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>',
   trash: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
@@ -510,6 +511,7 @@ function saveNote(remove) {
 function renderSheet() {
   if (ui.sheetMode.startsWith('plan')) return renderPlanSheet(); // plans.js
   if (ui.sheetMode.startsWith('chart')) return renderChartSheet(); // charts.js
+  if (ui.sheetMode === 'swap') return renderSwapSheet(); // swap.js
   if (ui.sheetMode === 'menu') return renderEntryMenu();
   if (ui.sheetMode === 'note') return renderNoteEditor();
   const q = ui.sheetQuery.trim().toLowerCase();
@@ -549,6 +551,7 @@ function renderEntryMenu() {
       <button class="btn text" data-action="close-sheet">Done</button>
     </div>
     <div class="menu">
+      <button data-action="entry-swap">${ICON.swap}<span>Swap exercise</span></button>
       <button data-action="note-open">${ICON.note}<span>${hasNote ? 'Edit note' : 'Add note'}</span></button>
       <button class="danger" data-action="entry-remove">${ICON.trash}<span>Remove from workout</span></button>
     </div>`;
