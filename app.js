@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.10';
+const APP_VERSION = '1.10.1';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -1169,8 +1169,11 @@ function tickClock() {
 setInterval(tickClock, 1000);
 
 // ---------- Start ----------
+// Wait until every script has run (plans.js, charts.js, … load after this file and may
+// still be downloading on a slow connection when the database is ready).
+const domReady = new Promise((r) => (document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r()));
 (async () => {
-  await loadAll();
+  await Promise.all([loadAll(), domReady]);
   render();
   if (navigator.storage?.persist) navigator.storage.persist();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
