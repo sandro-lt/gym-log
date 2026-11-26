@@ -12,7 +12,7 @@ function doneSetsOfExercise(exId, { beforeIso = null, excludeWorkoutId = null } 
   for (const we of live('workoutExercises')) {
     if (we.exerciseId !== exId || we.workoutId === excludeWorkoutId) continue;
     const w = data.workouts.get(we.workoutId);
-    if (!w || w.deletedAt || !w.endedAt || w.skipped) continue;
+    if (!w || w.deletedAt || !w.endedAt || w.skipped || w.deload) continue; // a deload never counts
     if (beforeIso && w.startedAt >= beforeIso) continue;
     for (const s of setsOf(we.id)) if (s.done) out.push({ s, w, we });
   }

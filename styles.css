@@ -102,6 +102,9 @@ h3 { margin: 0; font-size: 18px; font-weight: 700; }
   width: 28px; height: 28px; display: grid; place-items: center;
   border-radius: 8px; background: var(--surface-2); font-size: 14px; font-weight: 700;
 }
+.setrow .rm { color: var(--text); font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.setrow .rm.ph { color: var(--muted); font-weight: 500; }
+.setrow.head .rm-toggle { justify-self: start; padding: 4px 8px; margin-left: -8px; border-radius: 8px; background: var(--surface-2); color: var(--accent); font: inherit; font-weight: 700; text-transform: none; letter-spacing: 0; }
 .setrow .prev { color: var(--muted); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .setrow input, .setrow .val {
   width: 100%; height: 44px; border: 0; border-radius: 10px;
@@ -490,6 +493,7 @@ h3.mg { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-
 }
 .ps.done { border-color: #46d278; color: #46d278; }
 .ps.skipped { color: var(--muted); }
+.ps.deload { border-color: #7a9cff; color: #7a9cff; font-size: 10px; letter-spacing: -.02em; }
 .ps.next { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 .plan-cta { margin: 0 0 16px; }
 .hero .btn.ghost { width: 100%; }
@@ -675,3 +679,9 @@ body.resting #toast { bottom: calc(var(--tabbar) + var(--sab) + 96px); }
 
 .seg.three { grid-template-columns: repeat(3, 1fr); }
 .version.diag { font-size: 11px; opacity: .6; margin-top: -6px; }
+
+/* ---------- Deload ---------- */
+.zzz { display: inline-block; padding: 1px 6px; border-radius: 6px; background: rgba(122, 156, 255, .16); color: #7a9cff; font-size: 12px; font-weight: 800; letter-spacing: .02em; vertical-align: middle; }
+.trend.deload { width: auto; padding: 0 8px; color: #7a9cff; background: rgba(122, 156, 255, .16); font-size: 13px; font-weight: 800; }
+.zzz-ic { width: 22px; text-align: center; color: #7a9cff; font-size: 12px; font-weight: 800; }
+.menu button span small { display: block; font-size: 13px; font-weight: 500; color: var(--muted); }

@@ -51,7 +51,7 @@ function chartSeries(c) {
   const val = chartValue(c);
   let pts = [];
   if (c.type === 'workouts') {
-    const ws = finishedWorkouts().slice().reverse();
+    const ws = countedWorkouts().slice().reverse(); // without deloads
     if (val.bars) {
       // one bar per week (Monday), including empty weeks
       const first = from ?? (ws[0] ? new Date(ws[0].startedAt).getTime() : Date.now());
@@ -66,7 +66,7 @@ function chartSeries(c) {
     for (const we of live('workoutExercises')) {
       if (we.exerciseId !== c.exerciseId) continue;
       const w = data.workouts.get(we.workoutId);
-      if (!w || w.deletedAt || !w.endedAt || w.skipped) continue;
+      if (!w || w.deletedAt || !w.endedAt || w.skipped || w.deload) continue;
       const sets = setsOf(we.id).filter((s) => s.done);
       if (!sets.length) continue;
       if (!byWorkout.has(w.id)) byWorkout.set(w.id, { t: new Date(w.startedAt).getTime(), sets: [] });

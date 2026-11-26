@@ -36,7 +36,7 @@ function planState(plan) {
   }
   const last = events[events.length - 1];
   if (last && last.idx === pws.length - 1) round = []; // round complete -> start fresh
-  const status = new Map(round.map((e) => [pws[e.idx].id, e.w.skipped ? 'skipped' : 'done']));
+  const status = new Map(round.map((e) => [pws[e.idx].id, e.w.skipped ? 'skipped' : e.w.deload ? 'deload' : 'done']));
   const skipRecord = new Map(round.filter((e) => e.w.skipped).map((e) => [pws[e.idx].id, e.w]));
   const next = pws.length ? pws[last ? (last.idx + 1) % pws.length : 0] : null;
   return { pws, status, skipRecord, next };
@@ -61,11 +61,12 @@ function planSection() {
     const status = st.status.get(pw.id), isNext = st.next?.id === pw.id;
     const icon = status === 'done' ? `<span class="ps done">${ICON.check}</span>`
       : status === 'skipped' ? `<span class="ps skipped">${ICON_SKIP}</span>`
+      : status === 'deload' ? '<span class="ps deload">zZZ</span>'
       : `<span class="ps ${isNext ? 'next' : ''}">${i + 1}</span>`;
     return `
       <div class="plan-row ${status || ''} ${isNext ? 'next' : ''}" data-action="plan-row" data-pw="${pw.id}" role="button" tabindex="0">
         ${icon}
-        <span class="pr-name">${esc(pw.name || `Workout ${i + 1}`)}${status === 'skipped' ? '<small> · Skipped</small>' : ''}</span>
+        <span class="pr-name">${esc(pw.name || `Workout ${i + 1}`)}${status === 'skipped' ? '<small> · Skipped</small>' : status === 'deload' ? '<small> · Deload</small>' : ''}</span>
         ${isNext ? `<button class="btn primary small" data-action="plan-start" data-pw="${pw.id}">Start</button>` : planThumbs(pw.id)}
       </div>`;
   }).join('');
@@ -78,16 +79,36 @@ function planSection() {
 }
 
 // ---------- Plan actions ----------
-function startPlanWorkout(pwId) {
+/** Deload values for one exercise, from its last non-deload session:
+ *  70 % of the 12RM (estimated from the top set's e1RM) × 12 reps; for duration 70 % of the longest set. */
+const DELOAD_PCT = 0.7, DELOAD_REPS = 12;
+function deloadSet(exId) {
+  const last = lastPerformance(exId); // never a deload (app.js)
+  if (!last) return { weight: null, reps: null, durationSec: null };
+  const ex = data.exercises.get(exId);
+  if (metricOf(ex) === 'duration') {
+    const longest = Math.max(...last.sets.map((s) => s.durationSec ?? 0));
+    return { weight: null, reps: null, durationSec: longest > 0 ? Math.max(5, Math.round((longest * DELOAD_PCT) / 5) * 5) : null };
+  }
+  const top = Strength.best(last.sets);
+  if (!top) return { weight: null, reps: null, durationSec: null };
+  const step = ex?.weightStep || DEFAULT_WEIGHT_STEP;
+  const kg = Strength.weightForReps(top.oneRM, DELOAD_REPS) * DELOAD_PCT;
+  return { weight: Math.max(step, Math.round(kg / step) * step), reps: DELOAD_REPS, durationSec: null };
+}
+
+function startPlanWorkout(pwId, { deload = false } = {}) {
   if (activeWorkout()) { ui.tab = 'training'; render(); return toast('Finish your current workout first'); }
   const pw = data.planWorkouts.get(pwId);
-  const w = save('workouts', { id: uuid(), name: pw.name || null, planWorkoutId: pw.id, startedAt: new Date().toISOString(), endedAt: null });
+  const w = save('workouts', { id: uuid(), name: pw.name || null, planWorkoutId: pw.id, ...(deload ? { deload: true } : {}), startedAt: new Date().toISOString(), endedAt: null });
   planExercisesOf(pw.id).forEach((pe, i) => {
     const we = save('workoutExercises', { id: uuid(), workoutId: w.id, exerciseId: pe.exerciseId, position: i, note: null });
+    const pre = deload ? deloadSet(pe.exerciseId) : { weight: null, reps: null, durationSec: null };
     for (let k = 0; k < (pe.sets || 1); k++) {
-      save('sets', { id: uuid(), workoutExerciseId: we.id, position: k, weight: null, reps: null, durationSec: null, done: false });
+      save('sets', { id: uuid(), workoutExerciseId: we.id, position: k, ...pre, done: false });
     }
   });
+  if (deload) toast('Deload: 70 % of your 12RM × 12 – just tick them off');
   closeSheet();
   ui.tab = 'training';
   render();
@@ -246,6 +267,7 @@ function renderPlanSheet() {
       <button class="primary-row" data-action="plan-start" data-pw="${pw.id}">${ICON.right}<span>Start workout</span></button>
       ${status === 'skipped' ? `<button data-action="plan-unskip" data-pw="${pw.id}">${ICON_SKIP}<span>Undo skip</span></button>`
         : !status ? `<button data-action="plan-skip" data-pw="${pw.id}">${ICON_SKIP}<span>Skip${st.next?.id === pw.id ? '' : ' (and continue after it)'}</span></button>` : ''}
+      <button data-action="plan-deload" data-pw="${pw.id}"><span class="zzz-ic">zZZ</span><span>Deload<small>70 % of 12RM × 12 · not counted</small></span></button>
       <button data-action="plan-edit" data-plan="${pw.planId}">${ICON.note}<span>Edit plan</span></button>
     </div>`;
 }
@@ -271,6 +293,7 @@ document.addEventListener('click', (e) => {
     case 'plan-row': openPlanSheet('plan-row', el.dataset.pw); break;
     case 'plan-start': startPlanWorkout(el.dataset.pw); break;
     case 'plan-skip': skipPlanWorkout(el.dataset.pw); break;
+    case 'plan-deload': startPlanWorkout(el.dataset.pw, { deload: true }); break;
     case 'plan-unskip': {
       const rec = planState(data.plans.get(data.planWorkouts.get(el.dataset.pw).planId)).skipRecord.get(el.dataset.pw);
       if (rec) softDelete('workouts', rec);

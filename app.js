@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.13.3';
+const APP_VERSION = '1.14';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -48,11 +48,25 @@ const metricOf = (ex) => (ex && METRICS[ex.metric] ? ex.metric : 'weight_reps');
 // ---------- Queries ----------
 const exercisesSorted = () => live('exercises').sort((a, b) => a.name.localeCompare(b.name, 'en'));
 const activeWorkout = () => live('workouts').find((w) => !w.endedAt);
+/** Workouts that count for stats and charts (a deload stays in the calendar, but not in the numbers). */
+const countedWorkouts = () => finishedWorkouts().filter((w) => !w.deload);
 const finishedWorkouts = () => live('workouts').filter((w) => w.endedAt && !w.skipped).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 const entriesOf = (workoutId) => live('workoutExercises').filter((we) => we.workoutId === workoutId).sort((a, b) => a.position - b.position);
 const setsOf = (weId) => live('sets').filter((s) => s.workoutExerciseId === weId).sort((a, b) => a.position - b.position);
 const exerciseName = (id) => data.exercises.get(id)?.name ?? 'Deleted exercise';
 const hasValue = (s) => s && (s.weight != null || s.durationSec != null);
+
+// --- e10RM / e1RM column in the workout (tap the header to switch) ---
+const RM_LABEL = { e10: 'e10RM', e1: 'e1RM' };
+/** Estimated RM of the values in a set row (grey while only the suggestion is shown). */
+function rmCell(metric, s, fallback) {
+  if (metric === 'duration') return '<span class="rm"></span>';
+  const own = s.weight != null && s.reps != null;
+  const w = own ? s.weight : fallback?.weight, r = own ? s.reps : fallback?.reps;
+  const v = ui.rmMode === 'e1' ? Strength.oneRepMax(w, r) : Strength.tenRepMax(w, r);
+  return `<span class="rm ${own ? '' : 'ph'}">${v != null ? fmtKg(Math.round(v * 10) / 10) : '–'}</span>`;
+}
+const ZZZ = '<span class="zzz" title="Deload – not counted">zZZ</span>';
 
 /** Most recent finished performance of an exercise (for "Last time").
  *  beforeIso: only workouts that started before this time (used when viewing/editing an old workout). */
@@ -61,7 +75,7 @@ function lastPerformance(exerciseId, excludeWorkoutId, beforeIso) {
   for (const we of live('workoutExercises')) {
     if (we.exerciseId !== exerciseId || we.workoutId === excludeWorkoutId) continue;
     const w = data.workouts.get(we.workoutId);
-    if (!w || w.deletedAt || !w.endedAt) continue;
+    if (!w || w.deletedAt || !w.endedAt || w.deload) continue; // a deload is never the basis for the next workout
     if (beforeIso && w.startedAt >= beforeIso) continue;
     const sets = setsOf(we.id).filter((s) => s.done);
     if (!sets.length) continue;
@@ -93,6 +107,7 @@ function fmtClock(ms) {
 
 // ---------- UI state ----------
 const ui = {
+  rmMode: localStorage.getItem('gymlog.rmMode') === 'e1' ? 'e1' : 'e10', // e-RM column in the workout
   tab: 'training', // training | history (via week strip) | charts | settings
   calMonth: (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })(),
   calDay: dayKey(new Date()),
@@ -176,8 +191,8 @@ const musclesText = (ex) => !ex?.primaryMuscle ? '' :
 
 // --- Training: start ---
 function viewStart() {
-  const done = finishedWorkouts();
-  const last = done[0];
+  const done = countedWorkouts();
+  const last = finishedWorkouts()[0];
   const weekCount = done.filter((w) => Date.now() - new Date(w.startedAt) < 7 * 864e5).length;
   const hasPlan = !!activePlan();
   return `
@@ -205,7 +220,7 @@ function viewActiveWorkout() {
     <header class="top sticky">
       <div class="grow">
         <input class="title-input" data-input="workout-name" value="${esc(w.name ?? '')}" placeholder="Name workout" aria-label="Workout name" enterkeyhint="done" autocomplete="off">
-        <span class="sub">since ${fmtTime(w.startedAt)} · <span id="clock" data-start="${w.startedAt}"></span></span>
+        <span class="sub">${w.deload ? `${ZZZ} Deload · ` : ''}since ${fmtTime(w.startedAt)} · <span id="clock" data-start="${w.startedAt}"></span></span>
       </div>
       <button class="btn primary" data-action="finish">Finish</button>
     </header>
@@ -255,7 +270,7 @@ function entryCard(w, we) {
     return `
       <div class="setrow ${s.done ? 'done' : ''} ${records.has(s.id) ? 'pr' : ''}" data-set="${s.id}" data-metric="${metric}">
         <span class="n" ${records.has(s.id) ? 'title="New record"' : ''}>${records.has(s.id) ? ICON_TROPHY : i + 1}</span>
-        <span class="prev">${prev ? fmtSet(prev) : '–'}</span>
+        ${rmCell(metric, s, fallback)}
         ${setInputs(metric, s, fallback, i)}
         <button class="tick" data-action="toggle-set" aria-label="Complete set">${ICON.check}</button>
       </div>`;
@@ -272,7 +287,7 @@ function entryCard(w, we) {
       </div>
       ${notesHtml(ex, we)}
       <p class="lasttime">${last ? `Last time (${fmtDate(last.workout.startedAt)}) <b>${last.sets.map(fmtSet).join(' · ')}</b>` : 'No previous data'}</p>
-      <div class="setrow head"><span>Set</span><span>Last</span>${METRICS[metric].cols.map((c) => `<span class="${METRICS[metric].cols.length === 1 ? 'span2' : ''}">${c}</span>`).join('')}<span></span></div>
+      <div class="setrow head"><span>Set</span>${metric === 'duration' ? '<span></span>' : `<button class="rm-toggle" data-action="rm-toggle" aria-label="Switch between e10RM and e1RM">${RM_LABEL[ui.rmMode]}</button>`}${METRICS[metric].cols.map((c) => `<span class="${METRICS[metric].cols.length === 1 ? 'span2' : ''}">${c}</span>`).join('')}<span></span></div>
       ${rows}
       <div class="entry-foot">
         <button class="btn small" data-action="add-set">+ Set</button>
@@ -293,7 +308,7 @@ function workoutCard(w) {
   return `
     <button class="card wcard" data-action="open-workout" data-id="${w.id}">
       <div class="grow">
-        <b>${esc(workoutTitle(w))}</b>
+        <b>${esc(workoutTitle(w))}${w.deload ? ` ${ZZZ}` : ''}</b>
         <span class="sub">${fmtWhen(w)} · ${fmtDuration(new Date(w.endedAt) - new Date(w.startedAt))}</span>
         <span class="sub">${plural(entries.length, 'exercise', 'exercises')} · ${plural(doneSetsOf(w).length, 'set', 'sets')}${muscles.length ? ' · ' + esc(muscles.slice(0, 3).join(', ')) : ''}</span>
       </div>
@@ -345,6 +360,7 @@ function finishDetailEdit() {
  *  e10RM is used instead of e1RM: typical training sets are 5–15 reps, so the estimate
  *  stays close to what was actually lifted and compares better between workouts. */
 function trendOf(w, we) {
+  if (w.deload) return null; // a deload is not compared
   const ex = data.exercises.get(we.exerciseId);
   const isDur = metricOf(ex) === 'duration';
   const score = (sets) => {
@@ -387,7 +403,7 @@ function renderDetail() {
       <button class="btn text strong" data-action="${ui.detailEdit ? 'detail-done' : 'detail-edit'}">${ui.detailEdit ? 'Done' : 'Edit'}</button>
     </header>
     <input class="title-input" data-input="detail-name" value="${esc(w.name ?? '')}" placeholder="Name workout" aria-label="Workout name" enterkeyhint="done" autocomplete="off">
-    <p class="sub detail-when">${fmtWhen(w)} – ${fmtTime(w.endedAt)}</p>`;
+    <p class="sub detail-when">${w.deload ? `${ZZZ} Deload · ` : ''}${fmtWhen(w)} – ${fmtTime(w.endedAt)}</p>`;
 
   if (ui.detailEdit) {
     body.innerHTML = `${head}
@@ -912,7 +928,7 @@ function onSetDone(s) {
   const w = we && data.workouts.get(we.workoutId);
   if (!w || w.endedAt) return; // editing a past workout
   startRest(s); // rest.js
-  celebrateRecord(s); // records.js
+  if (!w.deload) celebrateRecord(s); // records.js – a deload never sets records
 }
 
 function finishWorkout() {
@@ -1041,6 +1057,10 @@ document.addEventListener('click', (e) => {
       ui.tab = 'history';
       render(); scrollToTop(); break;
     }
+    case 'rm-toggle':
+      ui.rmMode = ui.rmMode === 'e10' ? 'e1' : 'e10';
+      localStorage.setItem('gymlog.rmMode', ui.rmMode);
+      render(); break;
     case 'go-training': ui.tab = 'training'; render(); scrollToTop(); break;
     case 'detail-edit': ui.detailEdit = true; renderDetail(); break;
     case 'detail-done': if (finishDetailEdit()) { render(); toast('Changes saved'); } break;

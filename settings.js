@@ -121,13 +121,14 @@ function renderExerciseHistory() {
   if (!item) return closeExerciseHistory();
   const ex = item.ex;
   const sessions = item.kind === 'own' ? exerciseSessions(item.id) : [];
-  const all = sessions.flatMap((x) => x.sets);
+  const counted = sessions.filter((x) => !x.w.deload); // deloads are listed, but not counted
+  const all = counted.flatMap((x) => x.sets);
   const records = item.kind === 'own' && sessions.length ? exerciseRecords(ex) : []; // records.js
   const recordSet = records.find((r) => r.setId)?.setId;
   // overview only – the bests are in "Personal records" below
-  const first = sessions.length ? sessions[sessions.length - 1].w.startedAt : null;
-  const stats = sessions.length ? `<div class="stats three">
-      <div><span class="num">${sessions.length}</span><span class="lbl">${sessions.length === 1 ? 'session' : 'sessions'}</span></div>
+  const first = counted.length ? counted[counted.length - 1].w.startedAt : null;
+  const stats = counted.length ? `<div class="stats three">
+      <div><span class="num">${counted.length}</span><span class="lbl">${counted.length === 1 ? 'session' : 'sessions'}</span></div>
       <div><span class="num">${all.length}</span><span class="lbl">sets</span></div>
       <div><span class="num">${fmtDate(first)}</span><span class="lbl">since</span></div>
     </div>` : '';
@@ -149,7 +150,7 @@ function renderExerciseHistory() {
       <article class="card exh-card" data-action="exh-open-workout" data-wid="${w.id}">
         <div class="entry-head">
           <div><h3>${fmtWhen(w)}</h3><span class="sub">${esc(workoutTitle(w))}</span></div>
-          ${t ? `<span class="trend ${t.dir}" title="${t.title}" aria-label="${t.title}">${ICON[TREND_ICON[t.dir]]}</span>` : ''}
+          ${w.deload ? '<span class="trend deload" title="Deload – not compared">zZZ</span>' : t ? `<span class="trend ${t.dir}" title="${t.title}" aria-label="${t.title}">${ICON[TREND_ICON[t.dir]]}</span>` : ''}
         </div>
         ${we.note?.trim() ? `<div class="note"><p>${esc(we.note.trim())}</p></div>` : ''}
         <ol class="setlist">${sets.map((s, i) => `
