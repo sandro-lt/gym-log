@@ -166,7 +166,7 @@ document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   switch (el.dataset.action) {
-    case 'settings-page': ui.settingsPage = el.dataset.page || null; ui.exQuery = ''; render(); window.scrollTo(0, 0); break;
+    case 'settings-page': ui.settingsPage = el.dataset.page || null; ui.exQuery = ''; render(); scrollToTop(); break;
     case 'ex-new': openEditor(null, { name: ui.exQuery }); break;
     case 'exh-edit': editCatalogueItem(ui.exHist.kind, ui.exHist.id); break;
     case 'exh-close': closeExerciseHistory(); break;

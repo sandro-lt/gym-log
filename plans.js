@@ -91,7 +91,7 @@ function startPlanWorkout(pwId) {
   closeSheet();
   ui.tab = 'training';
   render();
-  window.scrollTo(0, 0);
+  scrollToTop();
 }
 
 function skipPlanWorkout(pwId) {

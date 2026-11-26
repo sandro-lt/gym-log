@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.12';
+const APP_VERSION = '1.12.1';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -110,6 +110,7 @@ const ui = {
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
+const scrollToTop = () => $('#main').scrollTo(0, 0); // <main> is the scroll container (app shell)
 
 function toast(msg) {
   const t = $('#toast');
@@ -977,7 +978,7 @@ async function importData(file) {
 // ---------- Events ----------
 document.addEventListener('click', (e) => {
   const tabBtn = e.target.closest('.tabbar button');
-  if (tabBtn) { ui.tab = tabBtn.dataset.tab; render(); window.scrollTo(0, 0); return; }
+  if (tabBtn) { ui.tab = tabBtn.dataset.tab; render(); scrollToTop(); return; }
 
   const el = e.target.closest('[data-action]');
   if (!el) {
@@ -1024,9 +1025,9 @@ document.addEventListener('click', (e) => {
       const [y, m] = el.dataset.day.split('-').map(Number);
       ui.calMonth = new Date(y, m - 1, 1);
       ui.tab = 'history';
-      render(); window.scrollTo(0, 0); break;
+      render(); scrollToTop(); break;
     }
-    case 'go-training': ui.tab = 'training'; render(); window.scrollTo(0, 0); break;
+    case 'go-training': ui.tab = 'training'; render(); scrollToTop(); break;
     case 'detail-edit': ui.detailEdit = true; renderDetail(); break;
     case 'detail-done': if (finishDetailEdit()) { render(); toast('Changes saved'); } break;
     case 'close-sheet': closeSheet(); break;
