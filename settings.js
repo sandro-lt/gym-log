@@ -22,6 +22,9 @@ function viewSettings() {
       <button data-action="settings-page" data-page="exercises">${ICON_DUMBBELL}<span>Exercises</span>
         <small>${exerciseCatalogue().length}</small><span class="chev">${ICON.right}</span></button>
     </div>
+    <h2 class="section">Rest timer sound</h2>
+    <div class="seg three">${SOUND_MODES.map(([id, label]) => `<button class="${soundMode === id ? 'on' : ''}" data-action="sound-mode" data-mode="${id}">${label}</button>`).join('')}</div>
+    <p class="hint">${soundMode === 'loud' ? 'Plays with the silent switch on – but pauses your music.' : soundMode === 'normal' ? 'Plays over your music, but not when the iPhone is on silent.' : 'No sound – the timer only lights up.'} Tap to test.</p>
     <h2 class="section">Data</h2>
     <div class="card data">
       <p class="sub">All data stays on this device only. Make a backup now and then – e.g. save it to iCloud Drive.</p>
@@ -30,7 +33,8 @@ function viewSettings() {
         <label class="btn">Import backup<input type="file" accept="application/json,.json" data-action="import" hidden></label>
       </div>
     </div>
-    <p class="version">Gym Log v${APP_VERSION}</p>`;
+    <p class="version">Gym Log v${APP_VERSION}</p>
+    <p class="version diag">${screenInfo()}</p>`;
 }
 
 function viewExerciseCatalogue() {

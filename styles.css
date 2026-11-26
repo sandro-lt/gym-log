@@ -18,7 +18,8 @@
    only <main> scrolls and the tab bar is the last row of a full-height column. */
 html { background: var(--bg); height: 100%; overflow: hidden; }
 body {
-  position: fixed; inset: 0;
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--app-h, 100%); /* set by fitAppHeight() in app.js */
   display: flex; flex-direction: column;
   overflow: hidden;
   margin: 0;
@@ -620,9 +621,10 @@ body.resting #toast { bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) +
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 8px 8px 8px 16px; border-radius: 16px; background: var(--surface-2); font-weight: 600; font-size: 15px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
-  transform: translateY(-140%); transition: transform .3s;
+  transform: translateY(calc(-100% - env(safe-area-inset-top) - 24px)); visibility: hidden;
+  transition: transform .3s, visibility 0s .3s;
 }
-#update.show { transform: none; }
+#update.show { transform: none; visibility: visible; transition: transform .3s; }
 
 /* ---------- Records ---------- */
 .setrow.pr .n { background: #f5b14c; color: #1d1405; }
@@ -668,3 +670,6 @@ body.resting #toast { bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) +
   88% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(.96) translateY(-6px); }
 }
+
+.seg.three { grid-template-columns: repeat(3, 1fr); }
+.version.diag { font-size: 11px; opacity: .6; margin-top: -6px; }

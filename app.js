@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.13';
+const APP_VERSION = '1.13.1';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -1183,6 +1183,29 @@ function tickClock() {
   if (c) c.textContent = fmtClock(Date.now() - new Date(c.dataset.start));
 }
 setInterval(tickClock, 1000);
+
+// ---------- Full-screen height (iOS 26 home-screen bug) ----------
+// In standalone mode iOS 26 sometimes reports a viewport that is shorter than the screen,
+// which leaves a gap under the tab bar. A portrait home-screen app always fills the screen,
+// so the screen height is used whenever it is the larger value.
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function fitAppHeight() {
+  const h = isStandalone() ? Math.max(innerHeight, screen.height) : innerHeight;
+  document.documentElement.style.setProperty('--app-h', `${h}px`);
+}
+fitAppHeight();
+addEventListener('resize', fitAppHeight);
+addEventListener('orientationchange', () => setTimeout(fitAppHeight, 300));
+
+/** Small diagnosis line in Settings (helps with iOS layout bugs). */
+function screenInfo() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);visibility:hidden';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe), top = parseInt(cs.paddingTop), bottom = parseInt(cs.paddingBottom);
+  probe.remove();
+  return `${isStandalone() ? 'app' : 'browser'} · view ${innerHeight} · screen ${screen.height} · safe ${top}/${bottom}`;
+}
 
 // ---------- Start ----------
 // Wait until every script has run (plans.js, charts.js, … load after this file and may

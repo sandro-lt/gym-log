@@ -12,22 +12,32 @@ let rest = JSON.parse(localStorage.getItem('gymlog.rest') || 'null'); // { endAt
 const saveRest = () => (rest ? localStorage.setItem('gymlog.rest', JSON.stringify(rest)) : localStorage.removeItem('gymlog.rest'));
 
 // --- sound (Web Audio has to be unlocked by a tap, which ticking a set is) ---
+// iOS: the default session ("ambient") mixes with music but is muted by the silent switch;
+// "playback" ignores the silent switch but pauses music. The user picks in Settings.
+const SOUND_MODES = [['off', 'Off'], ['normal', 'Normal'], ['loud', 'Even when silent']];
+let soundMode = localStorage.getItem('gymlog.sound') || 'normal';
+function setSoundMode(m) { soundMode = m; localStorage.setItem('gymlog.sound', m); }
 let audio = null;
 function unlockAudio() {
+  if (soundMode === 'off') return;
   try {
-    if (navigator.audioSession) navigator.audioSession.type = 'transient'; // Safari: short sound, music ducks
+    if (navigator.audioSession) navigator.audioSession.type = soundMode === 'loud' ? 'playback' : 'auto';
     audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === 'suspended') audio.resume();
+    if (audio.state !== 'running') audio.resume();
+    // play one silent sample inside the tap – iOS only unlocks the context like this
+    const b = audio.createBuffer(1, 1, 22050), src = audio.createBufferSource();
+    src.buffer = b; src.connect(audio.destination); src.start(0);
   } catch { audio = null; }
 }
-function beep() {
-  if (!audio) return;
-  const t0 = audio.currentTime + 0.02;
+async function beep() {
+  if (!audio || soundMode === 'off') return;
+  try { if (audio.state !== 'running') await audio.resume(); } catch { return; }
+  const t0 = audio.currentTime + 0.03;
   [0, 0.22, 0.44].forEach((d, i) => {
     const o = audio.createOscillator(), g = audio.createGain();
     o.frequency.value = i === 2 ? 1320 : 880;
     g.gain.setValueAtTime(0.0001, t0 + d);
-    g.gain.exponentialRampToValueAtTime(0.35, t0 + d + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.5, t0 + d + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.18);
     o.connect(g).connect(audio.destination);
     o.start(t0 + d); o.stop(t0 + d + 0.2);
@@ -98,6 +108,7 @@ document.addEventListener('click', (e) => {
   if (!el) return;
   if (el.dataset.action === 'rest-adj') adjustRest(Number(el.dataset.d));
   if (el.dataset.action === 'rest-skip') stopRest();
+  if (el.dataset.action === 'sound-mode') { setSoundMode(el.dataset.mode); render(); if (soundMode !== 'off') { unlockAudio(); beep(); } }
   // the workout ends -> no more rest
   if (el.dataset.action === 'finish' || el.dataset.action === 'discard') setTimeout(() => { if (!activeWorkout()) stopRest(); });
 });
