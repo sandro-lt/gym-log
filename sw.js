@@ -1,6 +1,6 @@
 // Offline-Cache. Bei jedem Update die Versionsnummer erhöhen,
 // damit Handys die neuen Dateien laden.
-const CACHE = 'gymlog-v1.12.1';
+const CACHE = 'gymlog-v1.13.0';
 const FILES = [
   './',
   './index.html',
@@ -11,6 +11,8 @@ const FILES = [
   './app.js',
   './library.js',
   './swap.js',
+  './records.js',
+  './rest.js',
   './plans.js',
   './charts.js',
   './settings.js',
@@ -21,7 +23,12 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // no skipWaiting here: the new version waits until the user taps "Update" in the app
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))));
+});
+
+self.addEventListener('message', (e) => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {

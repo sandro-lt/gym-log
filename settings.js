@@ -115,23 +115,18 @@ function renderExerciseHistory() {
   }
   const item = ui.exHist && catalogueItem(ui.exHist.kind, ui.exHist.id);
   if (!item) return closeExerciseHistory();
-  const ex = item.ex, isDur = metricOf(ex) === 'duration';
+  const ex = item.ex;
   const sessions = item.kind === 'own' ? exerciseSessions(item.id) : [];
   const all = sessions.flatMap((x) => x.sets);
-  let stats = '';
-  if (sessions.length) {
-    const best = isDur ? null : Strength.best(all);
-    const heaviest = isDur ? null : Math.max(...all.map((s) => s.weight ?? 0));
-    const longest = isDur ? Math.max(...all.map((s) => s.durationSec ?? 0)) : null;
-    stats = `<div class="stats three">
+  const records = item.kind === 'own' && sessions.length ? exerciseRecords(ex) : []; // records.js
+  const recordSet = records.find((r) => r.setId)?.setId;
+  // overview only – the bests are in "Personal records" below
+  const first = sessions.length ? sessions[sessions.length - 1].w.startedAt : null;
+  const stats = sessions.length ? `<div class="stats three">
       <div><span class="num">${sessions.length}</span><span class="lbl">${sessions.length === 1 ? 'session' : 'sessions'}</span></div>
-      ${isDur
-        ? `<div><span class="num">${fmtSecs(longest)}</span><span class="lbl">longest set</span></div>
-           <div><span class="num">${all.length}</span><span class="lbl">sets</span></div>`
-        : `<div><span class="num">${best ? fmtKg(Math.round(best.tenRM * 10) / 10) : '–'}</span><span class="lbl">best e10RM kg</span></div>
-           <div><span class="num">${fmtKg(heaviest)}</span><span class="lbl">heaviest kg</span></div>`}
-    </div>`;
-  }
+      <div><span class="num">${all.length}</span><span class="lbl">sets</span></div>
+      <div><span class="num">${fmtDate(first)}</span><span class="lbl">since</span></div>
+    </div>` : '';
   $('#exhist .body').innerHTML = `
     <header class="ed-head">
       <button class="btn text back" data-action="exh-close">${ICON.left}Exercises</button><b></b>
@@ -140,6 +135,10 @@ function renderExerciseHistory() {
     <div class="exh-title">${thumb(ex)}<div><h1>${esc(item.name)}</h1>
       ${ex.primaryMuscle ? `<span class="sub">${esc(musclesText(ex))}</span>` : ''}</div></div>
     ${stats}
+    ${records.length ? `<h2 class="section">Personal records</h2>
+      <div class="records">${records.map((r) => `
+        <div class="rec ${r.main ? 'main' : ''}">${r.main ? `<span class="trophy">${ICON_TROPHY}</span>` : ''}<small>${r.label}</small><b>${r.value}</b><span class="sub">${esc(r.detail)}</span></div>`).join('')}
+      </div><h2 class="section">Sessions</h2>` : ''}
     ${sessions.length ? sessions.map(({ w, we, sets }) => {
       const t = trendOf(w, we);
       return `
@@ -150,7 +149,7 @@ function renderExerciseHistory() {
         </div>
         ${we.note?.trim() ? `<div class="note"><p>${esc(we.note.trim())}</p></div>` : ''}
         <ol class="setlist">${sets.map((s, i) => `
-          <li class="${t?.set === s ? 'top' : ''}"><span class="n">${i + 1}</span><span>${s.durationSec != null ? fmtSecs(s.durationSec) : `${fmtKg(s.weight)} kg × ${s.reps}`}</span>
+          <li class="${t?.set === s ? 'top' : ''} ${s.id === recordSet ? 'pr' : ''}"><span class="n" ${s.id === recordSet ? 'title="All-time best"' : ''}>${s.id === recordSet ? ICON_TROPHY : i + 1}</span><span>${s.durationSec != null ? fmtSecs(s.durationSec) : `${fmtKg(s.weight)} kg × ${s.reps}`}</span>
             ${t?.set === s ? `<span class="top-e ${t.dir}"><b>${t.label} ${t.value}</b><small>${t.delta}</small></span>` : ''}</li>`).join('')}
         </ol>
       </article>`;

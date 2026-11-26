@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.12.1';
+const APP_VERSION = '1.13';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -148,6 +148,7 @@ function render() {
   if (ui.detail) renderDetail(); // keep the open detail view in sync
   if (ui.plan) renderPlanEditor(); // plans.js
   if (ui.exHist) renderExerciseHistory(); // settings.js
+  renderRest(); // rest.js
   tickClock();
 }
 
@@ -246,13 +247,14 @@ function entryCard(w, we) {
   const sets = setsOf(we.id);
   // for an old workout being edited, "last time" means before that workout
   const last = lastPerformance(we.exerciseId, w.id, w.endedAt ? w.startedAt : null);
+  const records = setRecordFlags(w, we); // records.js
   const rows = sets.map((s, i) => {
     const prev = last?.sets[i];
     // Suggestion (grey): same set last time, else last set last time, else the set above
     const fallback = prev ?? last?.sets[last.sets.length - 1] ?? (hasValue(sets[i - 1]) ? sets[i - 1] : null);
     return `
-      <div class="setrow ${s.done ? 'done' : ''}" data-set="${s.id}" data-metric="${metric}">
-        <span class="n">${i + 1}</span>
+      <div class="setrow ${s.done ? 'done' : ''} ${records.has(s.id) ? 'pr' : ''}" data-set="${s.id}" data-metric="${metric}">
+        <span class="n" ${records.has(s.id) ? 'title="New record"' : ''}>${records.has(s.id) ? ICON_TROPHY : i + 1}</span>
         <span class="prev">${prev ? fmtSet(prev) : '–'}</span>
         ${setInputs(metric, s, fallback, i)}
         <button class="tick" data-action="toggle-set" aria-label="Complete set">${ICON.check}</button>
@@ -848,6 +850,7 @@ function commitPicker() {
   const v = p.text ? parseNum(p.text) : p.value;
   if (v == null) return toast('Enter a value');
   const s = data.sets.get(p.setId);
+  const wasDone = s.done;
   if (p.field === 'duration') {
     if (!v) return toast('Pick a duration');
     s.durationSec = v;
@@ -861,6 +864,7 @@ function commitPicker() {
   closePicker();
   render();
   if (next) openPicker(s.id, 'reps');
+  if (!wasDone && s.done) onSetDone(s);
 }
 
 // ---------- Actions ----------
@@ -899,6 +903,16 @@ function toggleSet(row) {
   }
   save('sets', s);
   render();
+  onSetDone(s);
+}
+
+/** A set was just completed: rest timer + record check, only in the running workout. */
+function onSetDone(s) {
+  const we = data.workoutExercises.get(s.workoutExerciseId);
+  const w = we && data.workouts.get(we.workoutId);
+  if (!w || w.endedAt) return; // editing a past workout
+  startRest(s); // rest.js
+  celebrateRecord(s); // records.js
 }
 
 function finishWorkout() {
@@ -1178,5 +1192,29 @@ const domReady = new Promise((r) => (document.readyState === 'loading' ? documen
   await Promise.all([loadAll(), domReady]);
   render();
   if (navigator.storage?.persist) navigator.storage.persist();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+  if ('serviceWorker' in navigator) watchForUpdates();
 })();
+
+// --- Update banner: a new version is installed in the background, the user decides when to switch ---
+async function watchForUpdates() {
+  const reg = await navigator.serviceWorker.register('./sw.js');
+  const offer = (worker) => {
+    if (!worker || !navigator.serviceWorker.controller) return; // first install: nothing to update
+    const el = $('#update');
+    el.innerHTML = `<span>New version available</span><button class="btn small primary" data-action="update-now">Update</button>`;
+    el.classList.add('show');
+    el.onclick = (e) => { if (e.target.closest('[data-action=update-now]')) worker.postMessage('skipWaiting'); };
+  };
+  if (reg.waiting) offer(reg.waiting);
+  reg.addEventListener('updatefound', () => {
+    const w = reg.installing;
+    w?.addEventListener('statechange', () => { if (w.state === 'installed') offer(w); });
+  });
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
+  // a home-screen app is often only resumed, never reloaded -> look for updates when it comes back
+  let lastCheck = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - lastCheck > 60e3) { lastCheck = Date.now(); reg.update().catch(() => {}); }
+  });
+}
