@@ -9,7 +9,9 @@
   --accent-ink: #11150a;
   --danger: #ff6b6b;
   --radius: 16px;
-  --tabbar: 64px;
+  --tabbar: 56px;
+  /* bottom safe area; app.js sets it to 0 when iOS doesn't let the app reach the screen bottom */
+  --sab: env(safe-area-inset-bottom);
   color-scheme: dark;
 }
 
@@ -19,7 +21,7 @@
 html { background: var(--bg); height: 100%; overflow: hidden; }
 body {
   position: fixed; top: 0; left: 0; right: 0;
-  height: var(--app-h, 100%); /* set by fitAppHeight() in app.js */
+  height: var(--app-h, 100%); /* = window height, set by fitAppHeight() in app.js */
   display: flex; flex-direction: column;
   overflow: hidden;
   margin: 0;
@@ -160,7 +162,7 @@ h3 { margin: 0; font-size: 18px; font-weight: 700; }
   position: absolute; left: 0; right: 0; bottom: 0;
   max-width: 560px; margin: 0 auto; max-height: 88vh; overflow-y: auto;
   background: var(--surface); border-radius: 22px 22px 0 0;
-  padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px);
+  padding: 16px 16px calc(var(--sab) + 16px);
   transform: translateY(100%); transition: transform .25s cubic-bezier(.2, .8, .2, 1);
 }
 .sheet.open { opacity: 1; pointer-events: auto; }
@@ -181,20 +183,20 @@ h3 { margin: 0; font-size: 18px; font-weight: 700; }
 .tabbar {
   position: relative; flex: none; z-index: 10;
   display: flex; justify-content: space-around;
-  height: calc(var(--tabbar) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(var(--tabbar) + var(--sab));
+  padding-bottom: var(--sab);
   background: rgba(13, 15, 18, .92);
   -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
   border-top: 1px solid var(--line);
 }
-.tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: 11px; font-weight: 600; }
-.tabbar svg { width: 26px; height: 26px; }
+.tabbar button { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.tabbar svg { width: 28px; height: 28px; }
 .tabbar button.active { color: var(--accent); }
 
 /* ---------- Toast ---------- */
 #toast {
   position: fixed; left: 50%; z-index: 30;
-  bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) + 16px);
+  bottom: calc(var(--tabbar) + var(--sab) + 16px);
   transform: translate(-50%, 20px); opacity: 0; transition: .2s;
   background: var(--text); color: var(--bg); font-weight: 600; font-size: 15px;
   padding: 10px 16px; border-radius: 999px; pointer-events: none; white-space: nowrap;
@@ -223,7 +225,7 @@ h3 { margin: 0; font-size: 18px; font-weight: 700; }
 .editor.open { transform: none; }
 .editor .body {
   height: 100%; overflow-y: auto; max-width: 560px; margin: 0 auto;
-  padding: 0 16px calc(env(safe-area-inset-bottom) + 32px);
+  padding: 0 16px calc(var(--sab) + 32px);
 }
 .ed-head {
   position: sticky; top: 0; z-index: 2;
@@ -318,7 +320,7 @@ h3.mg { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-
 .pk-item.sel { background: var(--accent); color: var(--accent-ink); }
 .pk-pad {
   background: var(--surface); border-radius: 22px 22px 0 0;
-  padding: 12px 12px calc(env(safe-area-inset-bottom) + 12px);
+  padding: 12px 12px calc(var(--sab) + 12px);
 }
 .pk-display { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; margin-bottom: 10px; }
 .pk-value { text-align: center; font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; padding-left: 96px; }
@@ -337,7 +339,7 @@ h3.mg { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-
 .pk-options {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
   background: var(--surface); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,.5);
-  padding: 16px 16px calc(env(safe-area-inset-bottom) + 20px);
+  padding: 16px 16px calc(var(--sab) + 20px);
 }
 .pk-options .sub { margin-bottom: 14px; }
 .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -591,7 +593,7 @@ h2.section small { font-weight: 500; color: var(--muted); margin-left: 4px; }
 /* ---------- Rest timer ---------- */
 #rest {
   position: fixed; z-index: 15; left: 12px; right: 12px; max-width: 536px; margin: 0 auto;
-  bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) + 10px);
+  bottom: calc(var(--tabbar) + var(--sab) + 10px);
   border-radius: 18px; overflow: hidden;
   background: rgba(34, 38, 45, .96); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
@@ -612,7 +614,7 @@ h2.section small { font-weight: 500; color: var(--muted); margin-left: 4px; }
 #rest.over .rest-bar { display: none; }
 @keyframes rest-pulse { 50% { transform: scale(1.03); } }
 body.resting main { padding-bottom: 110px; }
-body.resting #toast { bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) + 96px); }
+body.resting #toast { bottom: calc(var(--tabbar) + var(--sab) + 96px); }
 
 /* ---------- Update banner ---------- */
 #update {

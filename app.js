@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.13.1';
+const APP_VERSION = '1.13.2';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -1184,27 +1184,39 @@ function tickClock() {
 }
 setInterval(tickClock, 1000);
 
-// ---------- Full-screen height (iOS 26 home-screen bug) ----------
-// In standalone mode iOS 26 sometimes reports a viewport that is shorter than the screen,
-// which leaves a gap under the tab bar. A portrait home-screen app always fills the screen,
-// so the screen height is used whenever it is the larger value.
+// ---------- Window height & bottom safe area (iOS 26 home-screen bug) ----------
+// iOS 26 can give a home-screen app a window that ends above the screen bottom (by the
+// status-bar height). Content there is not drawn, so the app fills exactly its window,
+// and the home-indicator padding is dropped when the window doesn't reach the bottom.
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function safeInsets() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);visibility:hidden';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe), r = { top: parseInt(cs.paddingTop) || 0, bottom: parseInt(cs.paddingBottom) || 0 };
+  probe.remove();
+  return r;
+}
 function fitAppHeight() {
-  const h = isStandalone() ? Math.max(innerHeight, screen.height) : innerHeight;
-  document.documentElement.style.setProperty('--app-h', `${h}px`);
+  const root = document.documentElement.style;
+  root.setProperty('--app-h', `${innerHeight}px`);
+  if (!document.body) return;
+  const { top } = safeInsets();
+  // window starts at the top of the screen but is shorter than it by the status bar -> it can't reach the bottom
+  // (with an opaque status bar the window starts below it – top inset 0 – and does reach the bottom)
+  const short = isStandalone() && top > 0 && innerHeight + top <= screen.height + 1;
+  fitAppHeight.short = short;
+  if (short) root.setProperty('--sab', '0px'); else root.removeProperty('--sab');
 }
 fitAppHeight();
+addEventListener('DOMContentLoaded', fitAppHeight);
 addEventListener('resize', fitAppHeight);
 addEventListener('orientationchange', () => setTimeout(fitAppHeight, 300));
 
 /** Small diagnosis line in Settings (helps with iOS layout bugs). */
 function screenInfo() {
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);visibility:hidden';
-  document.body.appendChild(probe);
-  const cs = getComputedStyle(probe), top = parseInt(cs.paddingTop), bottom = parseInt(cs.paddingBottom);
-  probe.remove();
-  return `${isStandalone() ? 'app' : 'browser'} · view ${innerHeight} · screen ${screen.height} · safe ${top}/${bottom}`;
+  const { top, bottom } = safeInsets();
+  return `${isStandalone() ? 'app' : 'browser'} · view ${innerHeight} · screen ${screen.height} · safe ${top}/${bottom}${fitAppHeight.short ? ' · fix' : ''}`;
 }
 
 // ---------- Start ----------
