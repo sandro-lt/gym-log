@@ -15,7 +15,7 @@
   color-scheme: dark;
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; } /* manipulation: no double-tap zoom, scrolling still works */
 /* App shell: the page itself never scrolls or rubber-bands (iOS moves fixed bars then);
    only <main> scrolls and the tab bar is the last row of a full-height column. */
 html { background: var(--bg); height: 100%; overflow: hidden; }
