@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.17';
+const APP_VERSION = '1.18';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -17,6 +17,7 @@ function save(store, obj) {
   obj.updatedAt = now;
   data[store].set(obj.id, obj);
   DB.put(store, obj).catch((e) => toast('Saving failed: ' + e.message));
+  Sync.changed();
   return obj;
 }
 
@@ -997,17 +998,8 @@ async function importData(file) {
   try { payload = JSON.parse(await file.text()); } catch { return toast('Not a valid backup file'); }
   if (payload?.app !== 'gymlog') return toast('Not a Gym Log backup');
   // Merge: per record, the newer version (updatedAt) wins
-  let changed = 0;
-  for (const s of DB.STORES) {
-    const toWrite = (payload[s] || []).filter((o) => {
-      if (!o || !o.id) return false;
-      const cur = data[s].get(o.id);
-      return !cur || (o.updatedAt || '') > (cur.updatedAt || '');
-    });
-    if (toWrite.length) await DB.putMany(s, toWrite);
-    changed += toWrite.length;
-  }
-  await loadAll();
+  const changed = await Sync.merge(payload);
+  if (changed) Sync.resetPush();
   render();
   toast(changed ? `${plural(changed, 'entry', 'entries')} imported` : 'Nothing new in this backup');
 }

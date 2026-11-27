@@ -27,7 +27,7 @@ function viewSettings() {
     <p class="hint">${soundMode === 'loud' ? 'Plays with the silent switch on – but pauses your music.' : soundMode === 'normal' ? 'Plays over your music, but not when the iPhone is on silent.' : 'No sound – the timer only lights up.'} Tap to test.</p>
     <h2 class="section">Data</h2>
     <div class="card data">
-      <p class="sub">All data stays on this device only. Make a backup now and then – e.g. save it to iCloud Drive.</p>
+      <p class="sub" id="sync-status">${Sync.statusHtml()}</p>
       <div class="row">
         <button class="btn" data-action="export">Export backup</button>
         <label class="btn">Import backup<input type="file" accept="application/json,.json" data-action="import" hidden></label>
