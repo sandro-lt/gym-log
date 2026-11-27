@@ -146,7 +146,9 @@ function librarySearch(list, query) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return list;
   return list.filter((l) => {
-    const hay = `${l.name} ${MUSCLES[l.primaryMuscle]} ${l.secondaryMuscles.map((m) => MUSCLES[m]).join(' ')}`.toLowerCase();
+    const muscles = [l.primaryMuscle, ...l.secondaryMuscles].map((m) => MUSCLES[m]).filter(Boolean);
+    // English and (in German) the translated name and muscles, so both languages find it
+    const hay = [l.name, ...muscles, ...(I18n.lang === 'en' ? [] : [I18n.t(l.name), ...muscles.map(I18n.t)])].join(' ').toLowerCase();
     return words.every((w) => hay.includes(w));
   });
 }

@@ -1,11 +1,12 @@
 // Offline-Cache. Bei jedem Update die Versionsnummer erhöhen,
 // damit Handys die neuen Dateien laden.
-const CACHE = 'gymlog-v1.20.2';
+const CACHE = 'gymlog-v1.21.0';
 const FILES = [
   './',
   './index.html',
   './styles.css',
   './db.js',
+  './i18n.js',
   './sync.js',
   './cloud.js',
   './body.js',

@@ -69,7 +69,7 @@ function exerciseRecords(ex) {
   const heavy = maxBy(rows, (r) => (r.s.weight ?? 0) * 1000 + (r.s.reps ?? 0));
   if (heavy.s.weight != null) out.push({ label: 'Heaviest weight', value: kgText(heavy.s.weight), detail: `× ${heavy.s.reps} · ${when(heavy.w)}` });
   const vol = maxBy(sessions, (t) => t.vol);
-  if (vol.vol > 0) out.push({ label: 'Best session volume', value: `${Math.round(vol.vol).toLocaleString('en-GB')} kg`, detail: when(vol.w) });
+  if (vol.vol > 0) out.push({ label: 'Best session volume', value: `${Math.round(vol.vol).toLocaleString(I18n.locale)} kg`, detail: when(vol.w) });
   return out;
 }
 

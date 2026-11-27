@@ -39,6 +39,8 @@ function viewSettings() {
         <label class="btn">Import backup<input type="file" accept="application/json,.json" data-action="import" hidden></label>
       </div>
     </div>
+    <h2 class="section">Language</h2>
+    <div class="seg" translate="no">${[['en', 'English'], ['de', 'Deutsch']].map(([id, label]) => `<button class="${I18n.lang === id ? 'on' : ''}" data-action="lang-set" data-lang="${id}">${label}</button>`).join('')}</div>
     <h2 class="section">Danger zone</h2>
     <div class="card data">
       <p class="sub">Deletes all workouts, exercises, plans and charts${Cloud.user ? ' – on this device, in your cloud account and on your other signed-in devices' : ' on this device'}. Settings like the timer sound stay.</p>
@@ -254,7 +256,7 @@ function renderExerciseHistory() {
           <div><h3>${fmtWhen(w)}</h3><span class="sub">${esc(workoutTitle(w))}</span></div>
           ${w.deload ? '<span class="trend deload" title="Deload – not compared">zZZ</span>' : t ? `<span class="trend ${t.dir}" title="${t.title}" aria-label="${t.title}">${ICON[TREND_ICON[t.dir]]}</span>` : ''}
         </div>
-        ${we.note?.trim() ? `<div class="note"><p>${esc(we.note.trim())}</p></div>` : ''}
+        ${we.note?.trim() ? `<div class="note" translate="no"><p>${esc(we.note.trim())}</p></div>` : ''}
         <ol class="setlist">${sets.map((s, i) => `
           <li class="${t?.set === s ? 'top' : ''} ${s.id === recordSet ? 'pr' : ''}"><span class="n" ${s.id === recordSet ? 'title="All-time best"' : ''}>${s.id === recordSet ? ICON_TROPHY : i + 1}</span><span>${s.durationSec != null ? fmtSecs(s.durationSec) : `${fmtKg(s.weight)} kg × ${s.reps}`}</span>
             ${t?.set === s ? `<span class="top-e ${t.dir}"><b>${t.label} ${t.value}</b><small>${t.delta}</small></span>` : ''}</li>`).join('')}
@@ -276,6 +278,7 @@ document.addEventListener('click', (e) => {
     case 'ex-new': openEditor(null, { name: ui.exQuery }); break;
     case 'auth-back': Object.assign(ui.auth, { step: 'email', error: '' }); render(); break;
     case 'sync-now': Sync.run(); break;
+    case 'lang-set': if (el.dataset.lang !== I18n.lang) I18n.set(el.dataset.lang); break;
     case 'wipe-all': wipeAllData(); break;
     case 'sign-out':
       if (confirm('Sign out? Your data stays on this device, but stops syncing.')) Cloud.signOut();

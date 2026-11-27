@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.20.2';
+const APP_VERSION = '1.21';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -93,9 +93,9 @@ const pad2 = (n) => String(n).padStart(2, '0');
 const fmtSecs = (t) => `${Math.floor(t / 60)}:${pad2(t % 60)}`;
 const fmtSet = (s) => (s.durationSec != null ? fmtSecs(s.durationSec) : `${fmtKg(s.weight)}×${s.reps ?? '–'}`);
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-const fmtDay = (d) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long' });
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const fmtDate = (iso) => new Date(iso).toLocaleDateString(I18n.locale, { day: 'numeric', month: 'short' });
+const fmtDay = (d) => d.toLocaleDateString(I18n.locale, { weekday: 'short', day: 'numeric', month: 'long' });
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
 const dayKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 function fmtDuration(ms) {
   const m = Math.floor(ms / 60000);
@@ -237,7 +237,7 @@ function notesHtml(ex, we) {
   const pinned = ex?.pinnedNote?.trim(), own = we.note?.trim();
   const line = (text, isPinned) => `
     <div class="note ${isPinned ? 'pinned' : ''}">
-      <p>${esc(text)}</p>
+      <p translate="no">${esc(text)}</p>
       <button class="pin" data-action="${isPinned ? 'unpin-note' : 'pin-note'}" aria-pressed="${isPinned}" aria-label="${isPinned ? 'Unpin note' : 'Pin note – show every time'}">${ICON.pin}</button>
     </div>`;
   return (pinned ? line(pinned, true) : '') + (own && own !== pinned ? line(own, false) : '');
@@ -300,7 +300,7 @@ function entryCard(w, we) {
 
 // --- Workout overview card (history / start) – tap opens the details ---
 const workoutTitle = (w) => w.name?.trim() || 'Workout';
-const fmtWhen = (w) => `${new Date(w.startedAt).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(w.startedAt)}`;
+const fmtWhen = (w) => `${new Date(w.startedAt).toLocaleDateString(I18n.locale, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(w.startedAt)}`;
 const doneSetsOf = (w) => entriesOf(w.id).flatMap((we) => setsOf(we.id).filter((s) => s.done));
 
 function workoutCard(w) {
@@ -426,7 +426,7 @@ function renderDetail() {
     <div class="stats three">
       <div><span class="num">${fmtDuration(new Date(w.endedAt) - new Date(w.startedAt))}</span><span class="lbl">duration</span></div>
       <div><span class="num">${sets.length}</span><span class="lbl">sets</span></div>
-      <div><span class="num">${Math.round(volume).toLocaleString('en-GB')}</span><span class="lbl">kg volume</span></div>
+      <div><span class="num">${Math.round(volume).toLocaleString(I18n.locale)}</span><span class="lbl">kg volume</span></div>
     </div>
     ${entriesOf(w.id).map((we) => {
       const ex = data.exercises.get(we.exerciseId);
@@ -438,7 +438,7 @@ function renderDetail() {
             ${ex?.primaryMuscle ? `<span class="sub">${esc(musclesText(ex))}</span>` : ''}</div><span class="chev">${ICON.right}</span></div>
           ${t ? `<span class="trend ${t.dir}" title="${t.title}" aria-label="${t.title}">${ICON[TREND_ICON[t.dir]]}</span>` : ''}
         </div>
-        ${we.note?.trim() ? `<div class="note"><p>${esc(we.note.trim())}</p></div>` : ''}
+        ${we.note?.trim() ? `<div class="note" translate="no"><p>${esc(we.note.trim())}</p></div>` : ''}
         <ol class="setlist">${setsOf(we.id).filter((s) => s.done).map((s, i) => `
           <li class="${t?.set === s ? 'top' : ''}"><span class="n">${i + 1}</span><span>${s.durationSec != null ? fmtSecs(s.durationSec) : `${fmtKg(s.weight)} kg × ${s.reps}`}</span>
             ${t?.set === s ? `<span class="top-e ${t.dir}" title="${t.title}"><b>${t.label} ${t.value}</b><small>${t.delta}</small></span>` : ''}</li>`).join('')}
@@ -478,7 +478,7 @@ function viewHistory() {
     <section class="card cal">
       <div class="cal-head">
         <button class="icon" data-action="month" data-dir="-1" aria-label="Previous month">${ICON.left}</button>
-        <div><b>${m.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</b><span class="sub">${plural(monthCount, 'workout', 'workouts')}</span></div>
+        <div><b>${m.toLocaleDateString(I18n.locale, { month: 'long', year: 'numeric' })}</b><span class="sub">${plural(monthCount, 'workout', 'workouts')}</span></div>
         <button class="icon" data-action="month" data-dir="1" aria-label="Next month">${ICON.right}</button>
       </div>
       <div class="grid wd">${['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((x) => `<span>${x}</span>`).join('')}</div>

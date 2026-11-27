@@ -5,7 +5,7 @@ const CHART_RANGES = [['1m', '1 month', 30], ['3m', '3 months', 91], ['6m', '6 m
 const CHART_TRENDS = [[0, 'Off'], [7, '7 days'], [30, '30 days'], [90, '90 days']];
 
 const kg1 = (v) => `${fmtKg(Math.round(v * 10) / 10)} kg`;
-const int = (v) => Math.round(v).toLocaleString('en-GB');
+const int = (v) => Math.round(v).toLocaleString(I18n.locale);
 
 /** Values per chart kind: id -> { label (chip), name, calc(sets) or per-workout calc, fmt, axis } */
 const CHART_VALUES = {
