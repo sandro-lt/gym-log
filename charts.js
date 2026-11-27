@@ -153,6 +153,61 @@ function chartCard(c) {
 
 const ICON_WRENCH = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0 5 5L13 18l-2.5.5L11 16l6.5-6.5"/><path d="M14.5 6.5L5 16l-1 4 4-1 9.5-9.5"/></svg>';
 
+// ---------- Sets per muscle per week (body heat map) ----------
+ui.musWeek = 0; // 0 = this week, 1 = last week, …
+const MUS_LEVELS = [[17.5, 'h4', '18+'], [8, 'h3', '8–17'], [3, 'h2', '3–7'], [0.5, 'h1', '1–2']];
+const musLevel = (n) => MUS_LEVELS.find(([min]) => n >= min)?.[1];
+const fmtSets = (n) => String(Math.round(n * 10) / 10);
+
+/** Done sets per muscle group in the week starting at monday (primary = 1, secondary = ½; no deloads). */
+function muscleSets(monday) {
+  const to = monday + 7 * 864e5, sets = {};
+  for (const w of countedWorkouts()) {
+    const t = new Date(w.startedAt).getTime();
+    if (t < monday || t >= to) continue;
+    for (const we of entriesOf(w.id)) {
+      const ex = data.exercises.get(we.exerciseId);
+      if (!ex?.primaryMuscle) continue;
+      const n = setsOf(we.id).filter((s) => s.done).length;
+      if (!n) continue;
+      sets[ex.primaryMuscle] = (sets[ex.primaryMuscle] || 0) + n;
+      for (const m of ex.secondaryMuscles || []) if (m !== ex.primaryMuscle) sets[m] = (sets[m] || 0) + n / 2;
+    }
+  }
+  return sets;
+}
+
+function muscleMapCard() {
+  const monday = mondayOf(Date.now() - ui.musWeek * 7 * 864e5);
+  const sets = muscleSets(monday);
+  const levels = Object.fromEntries(Object.entries(sets).map(([m, n]) => [m, musLevel(n)]).filter(([, l]) => l));
+  const rows = Object.entries(sets).filter(([m]) => MUSCLES[m]).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(17, ...rows.map(([, n]) => n));
+  const untrained = Object.keys(MUSCLES).filter((m) => !sets[m]);
+  const label = ui.musWeek === 0 ? 'This week' : ui.musWeek === 1 ? 'Last week' : `Week of ${fmtDate(new Date(monday).toISOString())}`;
+  const total = rows.reduce((n, [m, v]) => n + v, 0);
+  return `
+    <article class="card chart mus-card">
+      <div class="ch-head">
+        <div class="ch-title"><div><b>Sets per muscle</b><span class="sub">${total ? plural(Number(fmtSets(total)), 'set', 'sets') : 'No sets'}</span></div></div>
+        <div class="mus-nav">
+          <button data-action="mus-week" data-d="1" aria-label="Previous week">${ICON.left}</button>
+          <span>${label}</span>
+          <button data-action="mus-week" data-d="-1" aria-label="Next week" ${ui.musWeek ? '' : 'disabled'}>${ICON.right}</button>
+        </div>
+      </div>
+      <div class="mus-figs">${['front', 'back'].map((v) => `<img src="${BODY.heatUrl(v, levels)}" alt="${v === 'front' ? 'Front' : 'Back'}">`).join('')}</div>
+      <div class="mus-legend"><span><i class="h0"></i>0</span>${[...MUS_LEVELS].reverse().map(([, l, t]) => `<span><i class="${l}"></i>${t}</span>`).join('')}</div>
+      ${rows.length ? `
+        <ul class="mus-list">${rows.map(([m, n]) => `
+          <li><span>${MUSCLES[m]}</span><span class="mus-bar"><i class="${musLevel(n) || 'h1'}" style="width:${Math.max(3, (n / max) * 100)}%"></i></span><b>${fmtSets(n)}</b></li>`).join('')}
+        </ul>
+        ${untrained.length ? `<p class="mus-none">Not trained: ${untrained.map((m) => MUSCLES[m]).join(', ')}</p>` : ''}
+        <p class="mus-none">Primary muscle counts 1 set, secondary muscles ½. Deloads are not counted.</p>`
+      : `<p class="empty">No sets logged ${ui.musWeek ? 'in this week' : 'this week yet'}.</p>`}
+    </article>`;
+}
+
 function viewCharts() {
   const range = CHART_RANGES.find((r) => r[0] === ui.chartRange) || CHART_RANGES[0];
   const list = chartsSorted();
@@ -162,6 +217,7 @@ function viewCharts() {
       <button class="btn text strong" data-action="chart-add">Add</button>
     </header>
     <header class="top"><h1>Charts</h1></header>
+    ${muscleMapCard()}
     ${list.length ? list.map(chartCard).join('') : `
       <p class="empty">No charts yet. Add one to see how your lifts and training develop.</p>
       <button class="btn primary big wide" data-action="chart-add">Add chart</button>`}`;
@@ -248,6 +304,7 @@ document.addEventListener('click', (e) => {
   if (!el) return;
   switch (el.dataset.action) {
     case 'chart-add': addChart(); break;
+    case 'mus-week': ui.musWeek = Math.max(0, ui.musWeek + Number(el.dataset.d)); render(); break;
     case 'chart-range': openChartSheet('chart-range'); break;
     case 'chart-set-range':
       ui.chartRange = el.dataset.range; ui.chartSel = {};

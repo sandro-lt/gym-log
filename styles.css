@@ -683,3 +683,28 @@ body.resting #toast { bottom: calc(var(--tabbar) + var(--sab) + 96px); }
 /* Favorites in the exercise list */
 .fav-rank { flex: none; width: 18px; text-align: center; font-weight: 800; color: var(--accent); }
 .fav-n { flex: none; color: var(--muted); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- Sets per muscle (heat map) ---------- */
+.mus-nav { display: flex; align-items: center; gap: 2px; flex: none; font-size: 13px; font-weight: 700; }
+.mus-nav button { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: var(--surface-2); color: var(--text); }
+.mus-nav button svg { width: 16px; height: 16px; }
+.mus-nav button:disabled { opacity: .3; }
+.mus-nav span { min-width: 82px; text-align: center; }
+.mus-figs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 12px 0 6px; padding: 10px 6px; border-radius: 14px; background: linear-gradient(#262b33, #16191e); }
+.mus-figs img { width: 100%; height: auto; display: block; }
+.mus-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); font-weight: 600; margin: 8px 0 12px; }
+.mus-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.mus-legend i, .mus-bar i { display: block; border-radius: 3px; }
+.mus-legend i { width: 11px; height: 11px; }
+.mus-card .h0 { background: #474d57; }
+.mus-card .h1 { background: #55613a; }
+.mus-card .h2 { background: #8fa83a; }
+.mus-card .h3 { background: var(--accent); }
+.mus-card .h4 { background: #ff9f2e; }
+.mus-list { list-style: none; margin: 0; padding: 0; }
+.mus-list li { display: grid; grid-template-columns: 104px 1fr 34px; align-items: center; gap: 10px; padding: 5px 2px; font-size: 14px; }
+.mus-list li > span:first-child { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mus-list b { text-align: right; font-variant-numeric: tabular-nums; }
+.mus-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.mus-bar i { height: 100%; }
+.mus-none { margin: 10px 2px 4px; font-size: 13px; color: var(--muted); }

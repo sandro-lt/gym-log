@@ -83,6 +83,9 @@ const BODY = (() => {
     <linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#535a66"/><stop offset="1" stop-color="#383e47"/></linearGradient>
     <radialGradient id="p" cx=".3" cy=".25" r=".95"><stop offset="0" stop-color="#efffa0"/><stop offset=".45" stop-color="#c6f432"/><stop offset="1" stop-color="#7a9c10"/></radialGradient>
     <linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fa83a"/><stop offset="1" stop-color="#5d6e22"/></linearGradient>
+    <linearGradient id="h1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f6b3c"/><stop offset="1" stop-color="#454e2c"/></linearGradient>
+    <linearGradient id="h2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#93ad38"/><stop offset="1" stop-color="#627520"/></linearGradient>
+    <radialGradient id="h4" cx=".3" cy=".25" r=".95"><stop offset="0" stop-color="#ffd59a"/><stop offset=".45" stop-color="#ff9f2e"/><stop offset="1" stop-color="#b8620a"/></radialGradient>
     <filter id="gl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>`;
   const fid = (a) => `f${a}`;
   const fibreDefs = (angles) => [...angles].map((a) => `
@@ -90,16 +93,24 @@ const BODY = (() => {
       <path d="M0 0H7" stroke="#4a6006" stroke-width="1.3" opacity=".55"/></pattern>`).join('');
   const both = (d, attrs) => `<path d="${d}" ${attrs}/><path d="${d}" ${attrs} transform="${MIRROR}"/>`;
 
-  /** Figure markup for one view; groups: { group: 'p' | 's' } (primary / secondary). */
+  // look per state: p/s = primary/secondary muscle, h1–h4 = heat map levels (few … very many sets)
+  const LOOK = {
+    p: { fill: 'p', fibre: true, glow: '#c6f432' }, s: { fill: 's' },
+    h1: { fill: 'h1' }, h2: { fill: 'h2' }, h3: { fill: 'p', fibre: true, glow: '#c6f432' }, h4: { fill: 'h4', glow: '#ff9f2e' },
+  };
+
+  /** Figure markup for one view; groups: { group: state } with a state from LOOK. */
   function figure(view, groups) {
-    const angles = new Set();
-    let base = `<path d="${SILHOUETTE}" fill="url(#sk)" stroke="#121418" stroke-width="3" stroke-linejoin="round"/>`, glow = '';
+    const angles = new Set(), glow = {};
+    let base = `<path d="${SILHOUETTE}" fill="url(#sk)" stroke="#121418" stroke-width="3" stroke-linejoin="round"/>`;
     for (const [id, group, angle] of view === 'front' ? FRONT : BACK) {
-      const st = group && groups[group], d = PATHS.get(id);
-      base += both(d, `fill="${st === 'p' ? 'url(#p)' : st === 's' ? 'url(#s)' : 'url(#m)'}" stroke="#121418" stroke-width="3" stroke-linejoin="round"`);
-      if (st === 'p') { angles.add(angle); base += both(d, `fill="url(#${fid(angle)})"`); glow += both(d, ''); }
+      const look = LOOK[group && groups[group]], d = PATHS.get(id);
+      base += both(d, `fill="url(#${look ? look.fill : 'm'})" stroke="#121418" stroke-width="3" stroke-linejoin="round"`);
+      if (look?.fibre) { angles.add(angle); base += both(d, `fill="url(#${fid(angle)})"`); }
+      if (look?.glow) glow[look.glow] = (glow[look.glow] || '') + both(d, '');
     }
-    return { defs: fibreDefs(angles), body: `${glow ? `<g fill="#c6f432" opacity=".5" filter="url(#gl)">${glow}</g>` : ''}${base}` };
+    const glows = Object.entries(glow).map(([c, g]) => `<g fill="${c}" opacity=".5" filter="url(#gl)">${g}</g>`).join('');
+    return { defs: fibreDefs(angles), body: glows + base };
   }
 
   const dataUrl = (svg) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace(/\s+/g, ' '));
@@ -128,8 +139,19 @@ const BODY = (() => {
     return url;
   }
 
+  /** Full figure (front or back) coloured per group: { group: 'h1' | 'h2' | 'h3' | 'h4' }. */
+  function heatUrl(view, levels) {
+    const key = `h:${view}:${JSON.stringify(levels)}`;
+    if (cache.has(key)) return cache.get(key);
+    const f = figure(view, levels);
+    const url = dataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="136 44 404 894"><defs>${DEFS}${f.defs}</defs>${f.body}</svg>`);
+    cache.set(key, url);
+    return url;
+  }
+
   return {
     GROUPS: CROPS,
+    heatUrl,
     thumbUrl,
     /** Tile image for the muscle picker. */
     thumb: (id) => `<img class="fig thumb-fig" src="${thumbUrl(id)}" alt="">`,
