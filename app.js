@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.20.1';
+const APP_VERSION = '1.20.2';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -1259,7 +1259,14 @@ async function watchForUpdates() {
     const el = $('#update');
     el.innerHTML = `<span>New version available</span><button class="btn small primary" data-action="update-now">Update</button>`;
     el.classList.add('show');
-    el.onclick = (e) => { if (e.target.closest('[data-action=update-now]')) worker.postMessage('skipWaiting'); };
+    el.onclick = async (e) => {
+      if (!e.target.closest('[data-action=update-now]')) return;
+      // let a running sync / token refresh finish first – a reload in the middle would lose the
+      // new sign-in token the server just handed out, and the old one no longer works
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      await Promise.race([Promise.all([Sync.idle(), Cloud.idle()]), wait(8000)]);
+      worker.postMessage('skipWaiting');
+    };
   };
   if (reg.waiting) offer(reg.waiting);
   reg.addEventListener('updatefound', () => {
@@ -1267,7 +1274,12 @@ async function watchForUpdates() {
     w?.addEventListener('statechange', () => { if (w.state === 'installed') offer(w); });
   });
   let reloading = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
+  navigator.serviceWorker.addEventListener('controllerchange', async () => {
+    if (reloading) return;
+    reloading = true;
+    await Promise.race([Cloud.idle(), new Promise((r) => setTimeout(r, 8000))]);
+    location.reload();
+  });
   // a home-screen app is often only resumed, never reloaded -> look for updates when it comes back
   let lastCheck = Date.now();
   document.addEventListener('visibilitychange', () => {

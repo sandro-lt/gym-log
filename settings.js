@@ -64,7 +64,9 @@ function accountHtml() {
       <button class="btn primary" ${a.busy ? 'disabled' : ''}>${a.busy ? 'Checking…' : 'Sign in'}</button>
     </form>${err}
     <button class="btn text small" data-action="auth-back">Use another email</button>`;
+  const lost = Cloud.lost;
   return `
+    ${lost ? `<p class="auth-err">You were signed out on ${fmtDate(lost.at)}, ${fmtTime(lost.at)} (${esc(lost.reason)}). Sign in again – nothing on this device is lost.</p>` : ''}
     <p class="acct">Sign in to back up your training and sync it automatically.</p>
     <form class="auth-row" data-form="auth-email">
       <input id="auth-email" type="email" autocomplete="email" placeholder="Email" value="${esc(a.email)}" enterkeyhint="send" required>

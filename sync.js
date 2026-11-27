@@ -112,6 +112,8 @@ const Sync = (() => {
 
   return {
     merge, run, changed, pendingCount, statusHtml,
+    /** Resolves when no sync is running. */
+    idle: () => running || Promise.resolve(),
     /** Delete all training data: every record becomes a bare deletion marker { id, createdAt,
      *  updatedAt, deletedAt } – content (names, sets, photos) is dropped here and, once synced,
      *  on the server and on every other device of the account (the marker is the newest version). */
