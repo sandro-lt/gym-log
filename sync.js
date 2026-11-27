@@ -112,6 +112,19 @@ const Sync = (() => {
 
   return {
     merge, run, changed, pendingCount, statusHtml,
+    /** Delete all training data: every record becomes a bare deletion marker { id, createdAt,
+     *  updatedAt, deletedAt } – content (names, sets, photos) is dropped here and, once synced,
+     *  on the server and on every other device of the account (the marker is the newest version). */
+    async wipeAll() {
+      const now = new Date().toISOString();
+      for (const s of DB.STORES) {
+        const list = [...data[s].values()].map((o) => ({ id: o.id, createdAt: o.createdAt || now, updatedAt: now, deletedAt: now }));
+        if (!list.length) continue;
+        await DB.putMany(s, list);
+        for (const o of list) data[s].set(o.id, o);
+      }
+      return run();
+    },
     /** Local data is in memory: syncing may start. */
     loaded() { loaded = true; },
     /** Signed in as userId: a new account starts with a full upload and a full download. */

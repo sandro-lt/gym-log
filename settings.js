@@ -39,6 +39,11 @@ function viewSettings() {
         <label class="btn">Import backup<input type="file" accept="application/json,.json" data-action="import" hidden></label>
       </div>
     </div>
+    <h2 class="section">Danger zone</h2>
+    <div class="card data">
+      <p class="sub">Deletes all workouts, exercises, plans and charts${Cloud.user ? ' – on this device, in your cloud account and on your other signed-in devices' : ' on this device'}. Settings like the timer sound stay.</p>
+      <div class="row"><button class="btn danger" data-action="wipe-all">Wipe all data</button></div>
+    </div>
     <p class="version">Gym Log v${APP_VERSION}</p>
     <p class="version diag">${screenInfo()}</p>`;
 }
@@ -65,6 +70,19 @@ function accountHtml() {
       <input id="auth-email" type="email" autocomplete="email" placeholder="Email" value="${esc(a.email)}" enterkeyhint="send" required>
       <button class="btn primary" ${a.busy ? 'disabled' : ''}>${a.busy ? 'Sending…' : 'Send code'}</button>
     </form>${err}`;
+}
+
+async function wipeAllData() {
+  const where = Cloud.user ? 'on this device AND in your cloud account (all your devices)' : 'on this device';
+  const answer = prompt(`This deletes all your training data ${where}. It can't be undone – export a backup first if you're unsure.\n\nType DELETE to confirm.`);
+  if (answer?.trim().toUpperCase() !== 'DELETE') { if (answer != null) toast('Nothing deleted'); return; }
+  stopRest(); // rest.js
+  await Sync.wipeAll();
+  closeSheet();
+  ui.tab = 'training'; ui.settingsPage = null;
+  render();
+  const st = Sync.state;
+  toast(!st.connected ? 'All data deleted' : st.status === 'ok' ? 'All data deleted – also in the cloud' : 'Deleted here – the cloud follows on the next sync');
 }
 
 async function authStep(fn) {
@@ -256,6 +274,7 @@ document.addEventListener('click', (e) => {
     case 'ex-new': openEditor(null, { name: ui.exQuery }); break;
     case 'auth-back': Object.assign(ui.auth, { step: 'email', error: '' }); render(); break;
     case 'sync-now': Sync.run(); break;
+    case 'wipe-all': wipeAllData(); break;
     case 'sign-out':
       if (confirm('Sign out? Your data stays on this device, but stops syncing.')) Cloud.signOut();
       break;
