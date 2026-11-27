@@ -4,6 +4,7 @@
 ui.settingsPage = null; // null | 'exercises'
 ui.exHist = null; // { kind: 'own'|'lib', id } – exercise whose history is open
 ui.exQuery = '';
+ui.auth = { step: 'email', email: '', busy: false, error: '' }; // sign-in form (cloud.js)
 
 const ICON_DUMBBELL = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>';
 
@@ -25,9 +26,14 @@ function viewSettings() {
     <h2 class="section">Rest timer sound</h2>
     <div class="seg three">${SOUND_MODES.map(([id, label]) => `<button class="${soundMode === id ? 'on' : ''}" data-action="sound-mode" data-mode="${id}">${label}</button>`).join('')}</div>
     <p class="hint">${soundMode === 'loud' ? 'Plays with the silent switch on – but pauses your music.' : soundMode === 'normal' ? 'Plays over your music, but not when the iPhone is on silent.' : 'No sound – the timer only lights up.'} Tap to test.</p>
-    <h2 class="section">Data</h2>
+    <h2 class="section">Account &amp; sync</h2>
     <div class="card data">
+      ${accountHtml()}
       <p class="sub" id="sync-status">${Sync.statusHtml()}</p>
+    </div>
+    <h2 class="section">Backup file</h2>
+    <div class="card data">
+      <p class="sub">A copy of all data as a file, e.g. for iCloud Drive. Importing merges: newer entries win.</p>
       <div class="row">
         <button class="btn" data-action="export">Export backup</button>
         <label class="btn">Import backup<input type="file" accept="application/json,.json" data-action="import" hidden></label>
@@ -36,6 +42,57 @@ function viewSettings() {
     <p class="version">Gym Log v${APP_VERSION}</p>
     <p class="version diag">${screenInfo()}</p>`;
 }
+
+/** Signed in: account + sync buttons. Otherwise: sign-in with an emailed one-time code. */
+function accountHtml() {
+  const a = ui.auth, err = a.error ? `<p class="auth-err">${esc(a.error)}</p>` : '';
+  if (Cloud.user) return `
+    <p class="acct">Signed in as <b>${esc(Cloud.user.email)}</b></p>
+    <div class="row acct-row">
+      <button class="btn" data-action="sync-now">Sync now</button>
+      <button class="btn" data-action="sign-out">Sign out</button>
+    </div>`;
+  if (a.step === 'code') return `
+    <p class="acct">Enter the code we sent to <b>${esc(a.email)}</b>.</p>
+    <form class="auth-row" data-form="auth-code">
+      <input id="auth-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code" enterkeyhint="go" required>
+      <button class="btn primary" ${a.busy ? 'disabled' : ''}>${a.busy ? 'Checking…' : 'Sign in'}</button>
+    </form>${err}
+    <button class="btn text small" data-action="auth-back">Use another email</button>`;
+  return `
+    <p class="acct">Sign in to back up your training and sync it automatically.</p>
+    <form class="auth-row" data-form="auth-email">
+      <input id="auth-email" type="email" autocomplete="email" placeholder="Email" value="${esc(a.email)}" enterkeyhint="send" required>
+      <button class="btn primary" ${a.busy ? 'disabled' : ''}>${a.busy ? 'Sending…' : 'Send code'}</button>
+    </form>${err}`;
+}
+
+async function authStep(fn) {
+  ui.auth.busy = true; ui.auth.error = ''; render();
+  try { await fn(); } catch (e) {
+    const m = e.message || String(e);
+    ui.auth.error = /expired or is invalid/i.test(m) ? 'Wrong or expired code.' : /rate limit/i.test(m) ? 'Too many emails – try again in a while.' : m;
+  }
+  ui.auth.busy = false; render();
+}
+
+document.addEventListener('submit', (e) => {
+  const form = e.target.closest('[data-form^="auth-"]');
+  if (!form) return;
+  e.preventDefault();
+  const a = ui.auth;
+  if (form.dataset.form === 'auth-email') {
+    const email = $('#auth-email').value.trim().toLowerCase();
+    authStep(async () => { await Cloud.sendCode(email); Object.assign(a, { email, step: 'code' }); });
+  } else {
+    const code = $('#auth-code').value.replace(/\s/g, '');
+    authStep(async () => {
+      await Cloud.verify(a.email, code);
+      Object.assign(a, { step: 'email', email: '' });
+      toast('Signed in – syncing');
+    });
+  }
+});
 
 function viewExerciseCatalogue() {
   return `
@@ -197,6 +254,11 @@ document.addEventListener('click', (e) => {
   switch (el.dataset.action) {
     case 'settings-page': ui.settingsPage = el.dataset.page || null; ui.exQuery = ''; render(); scrollToTop(); break;
     case 'ex-new': openEditor(null, { name: ui.exQuery }); break;
+    case 'auth-back': Object.assign(ui.auth, { step: 'email', error: '' }); render(); break;
+    case 'sync-now': Sync.run(); break;
+    case 'sign-out':
+      if (confirm('Sign out? Your data stays on this device, but stops syncing.')) Cloud.signOut();
+      break;
     case 'exh-edit': editCatalogueItem(ui.exHist.kind, ui.exHist.id); break;
     case 'exh-close': closeExerciseHistory(); break;
     case 'exh-open-workout': openDetail(el.dataset.wid); break;

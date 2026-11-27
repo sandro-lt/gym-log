@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.18';
+const APP_VERSION = '1.19';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -1246,7 +1246,8 @@ const domReady = new Promise((r) => (document.readyState === 'loading' ? documen
 (async () => {
   await Promise.all([loadAll(), domReady]);
   render();
-  if (navigator.storage?.persist) navigator.storage.persist();
+  Sync.loaded();
+  Cloud.start(); // cloud.js – syncs if signed in
   if ('serviceWorker' in navigator) watchForUpdates();
 })();
 

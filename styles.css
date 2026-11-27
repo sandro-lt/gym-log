@@ -708,3 +708,12 @@ body.resting #toast { bottom: calc(var(--tabbar) + var(--sab) + 96px); }
 .mus-bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
 .mus-bar i { height: 100%; }
 .mus-none { margin: 10px 2px 4px; font-size: 13px; color: var(--muted); }
+
+/* ---------- Account & sync ---------- */
+.data .acct { margin-bottom: 10px; }
+.auth-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.auth-row input { flex: 1; min-width: 0; height: 44px; border: 0; border-radius: 12px; padding: 0 14px; background: var(--surface-2); color: var(--text); font-size: 16px; outline: none; }
+.auth-row input:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+#auth-code { letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+.auth-err { color: var(--danger); font-size: 14px; margin: -2px 2px 10px !important; }
+.acct-row { margin: 0 0 12px !important; }

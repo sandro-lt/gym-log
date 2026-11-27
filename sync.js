@@ -13,7 +13,7 @@ const Sync = (() => {
   const KEY = 'gymlog.sync';
   const state = { lastPushAt: null, cursor: null, lastSyncAt: null, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
   const keep = () => localStorage.setItem(KEY, JSON.stringify(state));
-  let remote = null, running = null, timer = null, status = 'local', error = null, persisted = null, renderLater = false;
+  let loaded = false, remote = null, running = null, timer = null, status = 'local', error = null, persisted = null, renderLater = false;
 
   /** Records changed on this device since the last successful push, by store. */
   function pending() {
@@ -58,7 +58,7 @@ const Sync = (() => {
 
   /** Push local changes, then pull newer records from the server. */
   function run() {
-    if (!remote || !navigator.onLine) return Promise.resolve();
+    if (!loaded || !remote || !navigator.onLine) return Promise.resolve();
     if (running) return running;
     running = (async () => {
       status = 'syncing'; error = null; notify();
@@ -91,7 +91,7 @@ const Sync = (() => {
 
   function statusHtml() {
     const store = persisted ? 'Storage is protected – iOS won’t clear it.' : 'iOS may clear storage when the iPhone runs low on space.';
-    if (!remote) return `<b>Saved on this device</b> · works offline. ${store}<br>Cloud sync: not set up yet.`;
+    if (!remote) return `<b>Saved on this device only</b> · works offline. ${store}`;
     const when = state.lastSyncAt ? `last synced ${fmtTime(state.lastSyncAt)}` : 'not synced yet';
     const n = pendingCount();
     const line = status === 'syncing' ? 'Syncing…'
@@ -112,6 +112,13 @@ const Sync = (() => {
 
   return {
     merge, run, changed, pendingCount, statusHtml,
+    /** Local data is in memory: syncing may start. */
+    loaded() { loaded = true; },
+    /** Signed in as userId: a new account starts with a full upload and a full download. */
+    account(userId) {
+      if (state.userId !== userId) Object.assign(state, { userId, lastPushAt: null, cursor: null, lastSyncAt: null });
+      keep();
+    },
     /** Plug in a remote backend and sync right away. */
     connect(adapter) { remote = adapter; status = 'idle'; notify(); return run(); },
     disconnect() { remote = null; status = 'local'; notify(); },
