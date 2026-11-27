@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.16';
+const APP_VERSION = '1.16.1';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
