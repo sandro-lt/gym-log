@@ -141,14 +141,74 @@ function libraryAvailable() {
   return LIBRARY.filter((l) => !ids.has(l.id) && !names.has(l.name.toLowerCase()));
 }
 
-/** Search over name, equipment and muscle names; every word has to match. */
+/** Other names people search for (English and German gym slang). Key: part of the English name;
+ *  every exercise whose name contains it is also found by these words. */
+const SEARCH_ALIASES = {
+  'chest fly': 'butterfly pec deck flys flies fliegende',
+  'cable fly': 'cable butterfly cable crossover crossover flys flies fliegende kabelzug',
+  'reverse fly': 'reverse butterfly rear delt fly reverse pec deck reverse flys',
+  'reverse cable fly': 'rear delt fly reverse crossover',
+  'face pull': 'rear delt',
+  'lat pulldown': 'latzug lat pull pulldown',
+  'straight-arm pulldown': 'lat prayer straight arm',
+  'pullover': 'überzüge überzug',
+  'pull-up': 'pullup pull up klimmzug klimmzüge',
+  'chin-up': 'chinup chin up klimmzug klimmzüge untergriff',
+  'push-up': 'pushup push up liegestütz liegestütze',
+  'dip': 'dips barren',
+  'bench press': 'bankdrücken flachbank bench',
+  'incline': 'schrägbank',
+  'decline': 'negativ',
+  'chest press': 'brustpresse',
+  'overhead press': 'ohp military press schulterdrücken',
+  'shoulder press': 'schulterdrücken schulterpresse',
+  'arnold press': 'arnold',
+  'lateral raise': 'side raise side lateral seitheben seitenheben',
+  'shrug': 'schulterheben shrugs',
+  'row': 'rudern rows',
+  't-bar row': 'tbar t bar',
+  'deadlift': 'kreuzheben dl',
+  'romanian deadlift': 'rdl rumänisches stiff leg',
+  'squat': 'kniebeuge kniebeugen',
+  'hack squat': 'hackenschmidt hack',
+  'bulgarian split squat': 'bss split squat',
+  'leg press': 'beinpresse',
+  'leg extension': 'beinstrecker beinstrecken quad extension',
+  'leg curl': 'beinbeuger beinbeugen hamstring curl',
+  'hip thrust': 'glute bridge hüftstoß',
+  'hip abduction': 'abduktoren abductor',
+  'hip adduction': 'adduktoren adductor',
+  'glute kickback': 'kickback',
+  'calf': 'waden wadenheben',
+  'lunge': 'ausfallschritt ausfallschritte',
+  'hyperextension': 'back extension rückenstrecker roman chair',
+  'skull crusher': 'french press stirndrücken stirnpresse lying triceps extension',
+  'triceps pushdown': 'pushdown trizepsdrücken',
+  'rope pushdown': 'pushdown trizepsdrücken seil',
+  'overhead triceps extension': 'french press überkopf',
+  'biceps curl': 'bizeps curl curls',
+  'bayesian curl': 'behind the back curl',
+  'preacher curl': 'scott curl scottcurl larry scott',
+  'hammer curl': 'hammer curls',
+  'leg raise': 'beinheben',
+  'knee raise': 'knieheben',
+  'crunch': 'bauch crunches',
+  'plank': 'unterarmstütz',
+  'dead hang': 'hängen',
+};
+const aliasesOf = (name) => {
+  const n = name.toLowerCase();
+  return Object.entries(SEARCH_ALIASES).filter(([k]) => n.includes(k)).map(([, v]) => v);
+};
+
+/** Search over name, equipment, muscle names and other common names; every word has to match. */
 function librarySearch(list, query) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return list;
   return list.filter((l) => {
     const muscles = [l.primaryMuscle, ...l.secondaryMuscles].map((m) => MUSCLES[m]).filter(Boolean);
     // English and (in German) the translated name and muscles, so both languages find it
-    const hay = [l.name, ...muscles, ...(I18n.lang === 'en' ? [] : [I18n.t(l.name), ...muscles.map(I18n.t)])].join(' ').toLowerCase();
+    const hay = [l.name, ...aliasesOf(l.name), ...muscles, ...(I18n.lang === 'en' ? [] : [I18n.t(l.name), ...muscles.map(I18n.t)])].join(' ').toLowerCase();
     return words.every((w) => hay.includes(w));
   });
 }
