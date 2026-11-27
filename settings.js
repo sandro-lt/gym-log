@@ -161,7 +161,7 @@ function exerciseListHtml() {
     <ul class="card list ex-list ${m === 'fav' ? 'fav' : ''}">${list.map((i, k) => {
       const last = i.kind === 'own' ? lastPerformance(i.id) : null;
       const sec = i.secondaryMuscles.map((x) => MUSCLES[x]).join(', ');
-      const sub = [sec && `+ ${sec}`, i.metric === 'duration' && 'Duration'].filter(Boolean).join(' · ');
+      const sub = [sec && `+ ${sec}`, i.metric !== 'weight_reps' && METRICS[i.metric].label].filter(Boolean).join(' · ');
       return `<li data-exrow data-kind="${i.kind}" data-id="${i.id}">
         ${m === 'fav' ? `<span class="fav-rank">${k + 1}</span>` : ''}${thumb(i.ex)}
         <div class="grow"><b>${esc(i.name)}</b>
@@ -258,7 +258,7 @@ function renderExerciseHistory() {
         </div>
         ${we.note?.trim() ? `<div class="note" translate="no"><p>${esc(we.note.trim())}</p></div>` : ''}
         <ol class="setlist">${sets.map((s, i) => `
-          <li class="${t?.set === s ? 'top' : ''} ${s.id === recordSet ? 'pr' : ''}"><span class="n" ${s.id === recordSet ? 'title="All-time best"' : ''}>${s.id === recordSet ? ICON_TROPHY : i + 1}</span><span>${s.durationSec != null ? fmtSecs(s.durationSec) : `${fmtKg(s.weight)} kg × ${s.reps}`}</span>
+          <li class="${t?.set === s ? 'top' : ''} ${s.id === recordSet ? 'pr' : ''}"><span class="n" ${s.id === recordSet ? 'title="All-time best"' : ''}>${s.id === recordSet ? ICON_TROPHY : i + 1}</span><span>${fmtSetLong(s, metricOf(ex))}</span>
             ${t?.set === s ? `<span class="top-e ${t.dir}"><b>${t.label} ${t.value}</b><small>${t.delta}</small></span>` : ''}</li>`).join('')}
         </ol>
       </article>`;

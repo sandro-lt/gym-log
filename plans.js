@@ -90,6 +90,10 @@ function deloadSet(exId) {
     const longest = Math.max(...last.sets.map((s) => s.durationSec ?? 0));
     return { weight: null, reps: null, durationSec: longest > 0 ? Math.max(5, Math.round((longest * DELOAD_PCT) / 5) * 5) : null };
   }
+  if (metricOf(ex) === 'reps') { // same added weight, 70 % of the reps
+    const top = last.sets.reduce((a, s) => ((setScore(s, 'reps') ?? -1) > (a ? setScore(a, 'reps') : -1) ? s : a), null);
+    return { weight: top?.weight ?? 0, reps: top?.reps ? Math.max(1, Math.round(top.reps * DELOAD_PCT)) : null, durationSec: null };
+  }
   const top = Strength.best(last.sets);
   if (!top) return { weight: null, reps: null, durationSec: null };
   const step = ex?.weightStep || DEFAULT_WEIGHT_STEP;

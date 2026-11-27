@@ -19,17 +19,20 @@ function doneSetsOfExercise(exId, { beforeIso = null, excludeWorkoutId = null } 
   return out;
 }
 
-/** Best earlier set of an exercise (by e10RM / duration), as known when workout `w` was done. */
+/** Best earlier set of an exercise (by e10RM / duration / reps), as known when workout `w` was done. */
 function bestSetBefore(exId, w) {
   const rows = doneSetsOfExercise(exId, { excludeWorkoutId: w.id, beforeIso: w.endedAt ? w.startedAt : null });
+  const metric = metricOf(data.exercises.get(exId));
   let best = null, score = -Infinity;
-  for (const { s } of rows) { const v = setScore(s); if (v != null && v > score) { score = v; best = s; } }
+  for (const { s } of rows) { const v = setScore(s, metric); if (v != null && v > score) { score = v; best = s; } }
   return best;
 }
 
-/** Score used for "is this set a record": e10RM for weight × reps, seconds for duration. */
-function setScore(s) {
+/** Score used for "is this set a record": e10RM for weight × reps, seconds for duration,
+ *  reps metric: added weight first, then reps (10 kg × 6 beats 0 kg × 15, 0 kg × 15 beats 0 kg × 12). */
+function setScore(s, metric) {
   if (s.durationSec != null) return s.durationSec;
+  if (metric === 'reps') return Number.isInteger(s.reps) && s.reps > 0 ? (s.weight || 0) * 1000 + s.reps : null;
   return Strength.tenRepMax(s.weight, s.reps);
 }
 
@@ -37,12 +40,13 @@ function setScore(s) {
 function exerciseRecords(ex) {
   const rows = doneSetsOfExercise(ex.id);
   if (!rows.length) return [];
-  const isDur = metricOf(ex) === 'duration';
+  const metric = metricOf(ex), isDur = metric === 'duration';
   const maxBy = (list, f) => list.reduce((a, x) => (f(x) > f(a) ? x : a), list[0]);
   // per workout totals
   const byW = new Map();
   for (const r of rows) {
-    const t = byW.get(r.w.id) || { w: r.w, vol: 0, time: 0 };
+    const t = byW.get(r.w.id) || { w: r.w, vol: 0, time: 0, reps: 0 };
+    t.reps += r.s.reps ?? 0;
     t.vol += (r.s.weight ?? 0) * (r.s.reps ?? 0);
     t.time += r.s.durationSec ?? 0;
     byW.set(r.w.id, t);
@@ -56,6 +60,17 @@ function exerciseRecords(ex) {
       { label: 'Longest set', value: fmtSecs(longest.s.durationSec), detail: when(longest.w), setId: longest.s.id },
       { label: 'Most time in a session', value: fmtSecs(total.time), detail: when(total.w) },
     ];
+  }
+  if (metric === 'reps') {
+    const scored = rows.filter((r) => setScore(r.s, metric) != null);
+    if (!scored.length) return [];
+    const best = maxBy(scored, (r) => setScore(r.s, metric));
+    const most = maxBy(scored, (r) => r.s.reps * 1000 + (r.s.weight || 0));
+    const total = maxBy(sessions, (t) => t.reps);
+    const out = [{ label: 'Best set', value: fmtRepSet(best.s), detail: when(best.w), setId: best.s.id, main: true }];
+    if (most !== best) out.push({ label: 'Most reps in a set', value: plural(most.s.reps, 'rep', 'reps'), detail: most.s.weight ? `${fmtRepSet(most.s)} · ${when(most.w)}` : when(most.w) });
+    out.push({ label: 'Most reps in a session', value: plural(total.reps, 'rep', 'reps'), detail: when(total.w) });
+    return out;
   }
   const scored = rows.filter((r) => Strength.oneRepMax(r.s.weight, r.s.reps) != null);
   const out = [];
@@ -77,14 +92,15 @@ function exerciseRecords(ex) {
 function setRecordFlags(w, we) {
   const prior = doneSetsOfExercise(we.exerciseId, { beforeIso: w.startedAt, excludeWorkoutId: w.id });
   if (!prior.length) return new Set(); // first time is not a record
-  let best = Math.max(...prior.map((r) => setScore(r.s) ?? -Infinity));
+  const metric = metricOf(data.exercises.get(we.exerciseId));
+  let best = Math.max(...prior.map((r) => setScore(r.s, metric) ?? -Infinity));
   // earlier entries of the same exercise in this workout count as well
   const entries = entriesOf(w.id).filter((x) => x.exerciseId === we.exerciseId);
   const flags = new Set();
   for (const e of entries) {
     for (const s of setsOf(e.id)) {
       if (!s.done) continue;
-      const v = setScore(s);
+      const v = setScore(s, metric);
       if (v != null && v > best + 1e-6) { if (e.id === we.id) flags.add(s.id); best = v; }
     }
   }
@@ -99,9 +115,16 @@ function celebrateRecord(s) {
   if (!prior.length) return; // first time is not a record
   const today = entriesOf(w.id).filter((e) => e.exerciseId === we.exerciseId)
     .flatMap((e) => setsOf(e.id)).filter((x) => x.done && x.id !== s.id);
-  const before = Math.max(...[...prior, ...today].map((x) => setScore(x) ?? -Infinity));
-  const now = setScore(s);
+  const metric = metricOf(data.exercises.get(we.exerciseId));
+  const all = [...prior, ...today];
+  const before = Math.max(...all.map((x) => setScore(x, metric) ?? -Infinity));
+  const now = setScore(s, metric);
   if (now == null || now <= before + 1e-6) return;
+  if (metric === 'reps') {
+    const top = all.reduce((a, x) => ((setScore(x, metric) ?? -1) > (a ? setScore(a, metric) : -1) ? x : a), null);
+    const dw = (s.weight || 0) - (top.weight || 0);
+    return showCelebration(exerciseName(we.exerciseId), `Best set: ${fmtRepSet(s)} (+${dw ? `${fmtKg(dw)} kg` : plural(s.reps - top.reps, 'rep', 'reps')})`);
+  }
   const isDur = s.durationSec != null;
   const text = isDur ? `Longest set: ${fmtSecs(now)} (+${fmtSecs(now - before)})` : `e10RM ${kgText(now)} (+${fmtKg(Math.round((now - before) * 10) / 10)} kg)`;
   showCelebration(exerciseName(we.exerciseId), text);

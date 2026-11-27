@@ -3,7 +3,7 @@
  * Datenmodell – bewusst "relational" gehalten, damit es später 1:1 in
  * Supabase-Tabellen passt (Sync ohne Umbau):
  *
- *   exercises        { id, libraryId|null (LIBRARY entry it was copied from), name, image|null (JPEG data URL, 360px), metric ('weight_reps'|'duration'),
+ *   exercises        { id, libraryId|null (LIBRARY entry it was copied from), name, image|null (JPEG data URL, 360px), metric ('weight_reps'|'reps'|'duration'),
  *                      weightStep (kg, default 2.5), pinnedNote|null (shown in every workout),
  *                      primaryMuscle|null, secondaryMuscles: [] }   (muscle IDs: MUSCLE_GROUPS in app.js)
  *   workouts         { id, name|null, startedAt, endedAt|null, planWorkoutId|null, skipped? }

@@ -4,7 +4,7 @@
  * Limitation: a web app can't ring while the iPhone is locked or the app is closed
  * (that would need push notifications from a server). Loaded after app.js. */
 
-const REST_DEFAULT = { weight_reps: 120, duration: 60 };
+const REST_DEFAULT = { weight_reps: 120, reps: 90, duration: 60 };
 const REST_MIN = 15, REST_MAX = 600, REST_STEP = 15;
 const restOf = (ex) => ex?.restSec || REST_DEFAULT[metricOf(ex)];
 

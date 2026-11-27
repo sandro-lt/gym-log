@@ -1,7 +1,7 @@
 /* Built-in exercise library. Entries are only copied into the user's exercises when first used
  * (exercise.libraryId = entry id), so the own list stays short and edits stay possible.
  * One entry per equipment – weights on a barbell and on dumbbells aren't comparable.
- * Row: [name, equipment, primary muscle, 'secondary muscles', metric ('d' = duration)]
+ * Row: [name, equipment, primary muscle, 'secondary muscles', metric ('d' = duration, 'r' = reps with optional added weight)]
  * Muscle IDs: see MUSCLE_GROUPS in app.js. */
 const LIBRARY = (() => {
   const rows = [
@@ -20,8 +20,8 @@ const LIBRARY = (() => {
     ['Chest Fly', 'Machine', 'chest', 'front_delts'],
     ['Cable Fly', 'Cable', 'chest', 'front_delts'],
     ['Low-to-High Cable Fly', 'Cable', 'chest', 'front_delts'],
-    ['Push-up', 'Bodyweight', 'chest', 'front_delts triceps abs'],
-    ['Chest Dip', 'Bodyweight', 'chest', 'triceps front_delts'],
+    ['Push-up', 'Bodyweight', 'chest', 'front_delts triceps abs', 'r'],
+    ['Chest Dip', 'Bodyweight', 'chest', 'triceps front_delts', 'r'],
     // --- Back ---
     ['Deadlift', 'Barbell', 'lower_back', 'glutes hams quads traps forearms'],
     ['One-Arm Row', 'Dumbbell', 'upper_back', 'lats rear_delts biceps'],
@@ -36,8 +36,8 @@ const LIBRARY = (() => {
     ['One-Arm Lat Pulldown', 'Cable', 'lats', 'upper_back biceps'],
     ['Lat Pulldown', 'Machine', 'lats', 'upper_back biceps'],
     ['Straight-Arm Pulldown', 'Cable', 'lats', 'triceps'],
-    ['Pull-up', 'Bodyweight', 'lats', 'upper_back biceps forearms'],
-    ['Chin-up', 'Bodyweight', 'lats', 'biceps upper_back'],
+    ['Pull-up', 'Bodyweight', 'lats', 'upper_back biceps forearms', 'r'],
+    ['Chin-up', 'Bodyweight', 'lats', 'biceps upper_back', 'r'],
     ['Assisted Pull-up', 'Machine', 'lats', 'upper_back biceps'],
     ['Pullover', 'Dumbbell', 'lats', 'chest triceps'],
     ['Pullover', 'Cable', 'lats', 'chest triceps'],
@@ -98,7 +98,7 @@ const LIBRARY = (() => {
     ['Seated Leg Curl', 'Machine', 'hams', 'calves'],
     ['Romanian Deadlift', 'Barbell', 'hams', 'glutes lower_back'],
     ['Romanian Deadlift', 'Dumbbell', 'hams', 'glutes lower_back'],
-    ['Hyperextension', 'Bodyweight', 'hams', 'glutes lower_back abductors adductors'],
+    ['Hyperextension', 'Bodyweight', 'hams', 'glutes lower_back abductors adductors', 'r'],
     ['Hip Thrust', 'Barbell', 'glutes', 'hams'],
     ['Hip Thrust', 'Machine', 'glutes', 'hams'],
     ['Glute Kickback', 'Cable', 'glutes', 'hams'],
@@ -110,13 +110,13 @@ const LIBRARY = (() => {
     ['Seated Calf Raise', 'Machine', 'calves', ''],
     ['Calf Press', 'Machine', 'calves', ''],
     // --- Core ---
-    ['Crunch', 'Bodyweight', 'abs', ''],
+    ['Crunch', 'Bodyweight', 'abs', '', 'r'],
     ['Crunch', 'Machine', 'abs', ''],
     ['Cable Crunch', 'Cable', 'abs', ''],
-    ['Hanging Leg Raise', 'Bodyweight', 'abs', 'forearms'],
-    ['Hanging Knee Raise', 'Bodyweight', 'abs', 'forearms'],
-    ['Lying Leg Raise', 'Bodyweight', 'abs', ''],
-    ["Captain's Chair Leg Raise", 'Bodyweight', 'abs', ''],
+    ['Hanging Leg Raise', 'Bodyweight', 'abs', 'forearms', 'r'],
+    ['Hanging Knee Raise', 'Bodyweight', 'abs', 'forearms', 'r'],
+    ['Lying Leg Raise', 'Bodyweight', 'abs', '', 'r'],
+    ["Captain's Chair Leg Raise", 'Bodyweight', 'abs', '', 'r'],
     ['Plank', 'Bodyweight', 'abs', 'front_delts', 'd'],
     ['Side Plank', 'Bodyweight', 'abs', 'abductors', 'd'],
     ['Hollow Hold', 'Bodyweight', 'abs', '', 'd'],
@@ -128,7 +128,7 @@ const LIBRARY = (() => {
     equipment,
     primaryMuscle: primary,
     secondaryMuscles: secondary ? secondary.split(' ') : [],
-    metric: metric === 'd' ? 'duration' : 'weight_reps',
+    metric: metric === 'd' ? 'duration' : metric === 'r' ? 'reps' : 'weight_reps',
   }));
 })();
 
@@ -162,4 +162,17 @@ function exerciseFromLibrary(libId) {
     id: uuid(), libraryId: l.id, name: l.name, image: null, metric: l.metric, pinnedNote: null,
     primaryMuscle: l.primaryMuscle, secondaryMuscles: [...l.secondaryMuscles],
   });
+}
+
+/** v1.22 added the "reps" metric: copies of those library entries made earlier still say weight × reps.
+ *  Each exercise is switched once (metricV marks it), so a later choice in the editor stays. */
+function migrateMetrics() {
+  for (const ex of live('exercises')) {
+    if (ex.metricV) continue;
+    const l = ex.libraryId && LIBRARY.find((x) => x.id === ex.libraryId);
+    if (l?.metric !== 'reps') continue;
+    ex.metricV = 2;
+    if (ex.metric === 'weight_reps') ex.metric = 'reps';
+    save('exercises', ex);
+  }
 }

@@ -16,6 +16,11 @@ const CHART_VALUES = {
     volume: { label: 'Volume', name: 'Volume (kg × reps)', calc: (ss) => ss.reduce((n, s) => n + (s.weight ?? 0) * (s.reps ?? 0), 0), fmt: (v) => `${int(v)} kg` },
     reps: { label: 'Reps', name: 'Most reps in a set', calc: (ss) => Math.max(...ss.map((s) => s.reps ?? -Infinity)), fmt: (v) => `${int(v)} reps` },
   },
+  reps: {
+    reps: { label: 'Reps', name: 'Most reps in a set', calc: (ss) => Math.max(...ss.map((s) => s.reps ?? -Infinity)), fmt: (v) => `${int(v)} reps` },
+    total: { label: 'Total', name: 'Total reps', calc: (ss) => ss.reduce((n, s) => n + (s.reps ?? 0), 0), fmt: (v) => `${int(v)} reps` },
+    weight: { label: '+kg', name: 'Most added weight', calc: (ss) => Math.max(...ss.map((s) => s.weight ?? 0)), fmt: kg1 },
+  },
   duration: {
     time: { label: 'Time', name: 'Longest set', calc: (ss) => Math.max(...ss.map((s) => s.durationSec ?? -Infinity)), fmt: (v) => fmtSecs(Math.round(v)) },
     total: { label: 'Total', name: 'Total time', calc: (ss) => ss.reduce((n, s) => n + (s.durationSec ?? 0), 0), fmt: (v) => fmtSecs(Math.round(v)) },

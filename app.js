@@ -1,5 +1,5 @@
 /* Gym Log */
-const APP_VERSION = '1.21';
+const APP_VERSION = '1.22';
 
 // ---------- In-memory data (tiny data set, so everything is loaded) ----------
 const data = Object.fromEntries(DB.STORES.map((s) => [s, new Map()]));
@@ -39,9 +39,11 @@ const MUSCLE_GROUPS = [
 const MUSCLES = Object.fromEntries(MUSCLE_GROUPS.flatMap(([, list]) => list));
 
 // ---------- Metrics ----------
-// What a set records. New metrics can be added here (e.g. distance, reps only).
+// What a set records. New metrics can be added here (e.g. distance).
+// reps: bodyweight exercises – added weight is optional; more weight beats more reps (records.js setScore)
 const METRICS = {
   weight_reps: { label: 'Weight × Reps', hint: 'kg · reps', cols: ['kg', 'Reps'] },
+  reps: { label: 'Reps', hint: '+ kg optional', cols: ['+kg', 'Reps'] },
   duration: { label: 'Duration', hint: 'min : sec', cols: ['Time'] },
 };
 const metricOf = (ex) => (ex && METRICS[ex.metric] ? ex.metric : 'weight_reps');
@@ -61,7 +63,7 @@ const hasValue = (s) => s && (s.weight != null || s.durationSec != null);
 const RM_LABEL = { e10: 'e10RM', e1: 'e1RM' };
 /** Estimated RM of the values in a set row (grey while only the suggestion is shown). */
 function rmCell(metric, s, fallback) {
-  if (metric === 'duration') return '<span class="rm"></span>';
+  if (metric !== 'weight_reps') return '<span class="rm"></span>';
   const own = s.weight != null && s.reps != null;
   const w = own ? s.weight : fallback?.weight, r = own ? s.reps : fallback?.reps;
   const v = ui.rmMode === 'e1' ? Strength.oneRepMax(w, r) : Strength.tenRepMax(w, r);
@@ -91,6 +93,10 @@ const fmtKg = (n) => (n == null ? '' : String(Math.round(n * 100) / 100));
 const parseNum = (v) => { const n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
 const pad2 = (n) => String(n).padStart(2, '0');
 const fmtSecs = (t) => `${Math.floor(t / 60)}:${pad2(t % 60)}`;
+/** Set of the reps metric: "12 reps" or "+10 kg × 12". */
+const fmtRepSet = (s) => (s.weight ? `+${fmtKg(s.weight)} kg × ${s.reps}` : `${s.reps} reps`);
+/** Set in lists (workout detail, history). */
+const fmtSetLong = (s, metric) => (s.durationSec != null ? fmtSecs(s.durationSec) : metric === 'reps' ? fmtRepSet(s) : `${fmtKg(s.weight)} kg × ${s.reps}`);
 const fmtSet = (s) => (s.durationSec != null ? fmtSecs(s.durationSec) : `${fmtKg(s.weight)}×${s.reps ?? '–'}`);
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const fmtDate = (iso) => new Date(iso).toLocaleDateString(I18n.locale, { day: 'numeric', month: 'short' });
@@ -253,7 +259,7 @@ function setInputs(metric, s, fallback, i) {
   // Weight × reps: tap opens the value picker (no system keyboard)
   const w = s.weight, r = s.reps, fw = fallback?.weight, fr = fallback?.reps;
   return `
-    <button class="f1 val ${w == null ? 'ph' : ''}" data-action="pick" data-field="weight" data-value="${w ?? ''}" data-ph="${fw ?? ''}" aria-label="Weight, set ${i + 1}">${w != null ? fmtKg(w) : fw != null ? fmtKg(fw) : 'kg'}</button>
+    <button class="f1 val ${w == null ? 'ph' : ''}" data-action="pick" data-field="weight" data-value="${w ?? ''}" data-ph="${fw ?? ''}" aria-label="Weight, set ${i + 1}">${w != null ? fmtKg(w) : fw != null ? fmtKg(fw) : metric === 'reps' ? '0' : 'kg'}</button>
     <button class="f2 val ${r == null ? 'ph' : ''}" data-action="pick" data-field="reps" data-value="${r ?? ''}" data-ph="${fr ?? ''}" aria-label="Reps, set ${i + 1}">${r ?? fr ?? 'reps'}</button>`;
 }
 
@@ -289,7 +295,7 @@ function entryCard(w, we) {
       </div>
       ${notesHtml(ex, we)}
       <p class="lasttime"><span>${last ? `Last time (${fmtDate(last.workout.startedAt)}) <b>${last.sets.map(fmtSet).join(' · ')}</b>` : 'No previous data'}</span>${best ? `<span class="best">Best <b>${fmtSet(best)}</b></span>` : ''}</p>
-      <div class="setrow head"><span>Set</span>${metric === 'duration' ? '<span></span>' : `<button class="rm-toggle" data-action="rm-toggle" aria-label="Switch between e10RM and e1RM">${RM_LABEL[ui.rmMode]}</button>`}${METRICS[metric].cols.map((c) => `<span class="${METRICS[metric].cols.length === 1 ? 'span2' : ''}">${c}</span>`).join('')}<span></span></div>
+      <div class="setrow head"><span>Set</span>${metric !== 'weight_reps' ? '<span></span>' : `<button class="rm-toggle" data-action="rm-toggle" aria-label="Switch between e10RM and e1RM">${RM_LABEL[ui.rmMode]}</button>`}${METRICS[metric].cols.map((c) => `<span class="${METRICS[metric].cols.length === 1 ? 'span2' : ''}">${c}</span>`).join('')}<span></span></div>
       ${rows}
       <div class="entry-foot">
         <button class="btn small" data-action="add-set">+ Set</button>
@@ -370,7 +376,8 @@ function finishDetailEdit() {
 function trendOf(w, we) {
   if (w.deload) return null; // a deload is not compared
   const ex = data.exercises.get(we.exerciseId);
-  const isDur = metricOf(ex) === 'duration';
+  const metric = metricOf(ex), isDur = metric === 'duration';
+  if (metric === 'reps') return repsTrend(w, we);
   const score = (sets) => {
     if (isDur) {
       const top = sets.reduce((a, s) => ((s.durationSec || 0) > (a?.durationSec || 0) ? s : a), null);
@@ -397,6 +404,27 @@ function trendOf(w, we) {
   };
 }
 const TREND_ICON = { up: 'up', down: 'down', same: 'minus' };
+
+/** Trend for the reps metric: best set by added weight, then reps (records.js setScore). */
+function repsTrend(w, we) {
+  const top = (sets) => sets.reduce((a, s) => ((setScore(s, 'reps') ?? -1) > (a ? setScore(a, 'reps') : -1) ? s : a), null);
+  const now = top(setsOf(we.id).filter((s) => s.done));
+  if (!now || setScore(now, 'reps') == null) return null;
+  const prev = lastPerformance(we.exerciseId, w.id, w.startedAt);
+  const before = prev && top(prev.sets);
+  const base = { set: now, label: 'Best', value: fmtRepSet(now) };
+  if (!before || setScore(before, 'reps') == null) return { ...base, dir: 'same', delta: 'first time', title: 'No earlier workout to compare' };
+  const dw = (now.weight || 0) - (before.weight || 0), dr = now.reps - before.reps;
+  const diff = dw || dr;
+  const dir = diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
+  const sign = diff > 0 ? '+' : diff < 0 ? '−' : '±';
+  return {
+    ...base,
+    dir,
+    delta: `${sign}${dw ? `${fmtKg(Math.abs(dw))} kg` : plural(Math.abs(dr), 'rep', 'reps')} vs ${fmtDate(prev.workout.startedAt)}`,
+    title: dir === 'up' ? 'Stronger than last time' : dir === 'down' ? 'Weaker than last time' : 'Same as last time',
+  };
+}
 
 function renderDetail() {
   const w = data.workouts.get(ui.detail);
@@ -440,7 +468,7 @@ function renderDetail() {
         </div>
         ${we.note?.trim() ? `<div class="note" translate="no"><p>${esc(we.note.trim())}</p></div>` : ''}
         <ol class="setlist">${setsOf(we.id).filter((s) => s.done).map((s, i) => `
-          <li class="${t?.set === s ? 'top' : ''}"><span class="n">${i + 1}</span><span>${s.durationSec != null ? fmtSecs(s.durationSec) : `${fmtKg(s.weight)} kg × ${s.reps}`}</span>
+          <li class="${t?.set === s ? 'top' : ''}"><span class="n">${i + 1}</span><span>${fmtSetLong(s, metricOf(ex))}</span>
             ${t?.set === s ? `<span class="top-e ${t.dir}" title="${t.title}"><b>${t.label} ${t.value}</b><small>${t.delta}</small></span>` : ''}</li>`).join('')}
         </ol>
       </article>`;
@@ -547,7 +575,7 @@ function renderSheet() {
   const lib = librarySearch(libraryAvailable(), q).sort((a, b) => a.name.localeCompare(b.name, 'en'));
   const exact = [...own, ...LIBRARY].some((e) => e.name.toLowerCase() === q);
   const libItem = (l) => `<li><button data-action="pick-library" data-lib="${l.id}">${thumb(l, 'sm')}
-        <span><b>${esc(l.name)}</b><span class="sub">${MUSCLES[l.primaryMuscle]}${l.metric === 'duration' ? ' · Duration' : ''}</span></span></button></li>`;
+        <span><b>${esc(l.name)}</b><span class="sub">${MUSCLES[l.primaryMuscle]}${l.metric !== 'weight_reps' ? ` · ${METRICS[l.metric].label}` : ''}</span></span></button></li>`;
   $('#sheet .body').innerHTML = `
     <div class="sheet-head">
       <h2>${ui.sheetPlanWorkout ? `Add to ${esc(data.planWorkouts.get(ui.sheetPlanWorkout)?.name || 'workout')}` : 'Add exercise'}</h2>
@@ -662,7 +690,7 @@ function renderEditor() {
       <div class="muscles">${list.map(([id, label]) => tile(id, label)).join('')}</div>`).join('')}
 
     <h3 class="mg metric-title">Metric</h3>
-    <div class="seg two">
+    <div class="seg three">
       ${Object.entries(METRICS).map(([k, m]) => `
         <button class="${e.metric === k ? 'on' : ''}" data-action="editor-metric" data-metric="${k}">${m.label}
           <small>${m.hint}</small></button>`).join('')}
@@ -699,7 +727,7 @@ function saveEditor() {
   if (dup) return toast(`“${dup.name}” already exists`);
   const ex = e.id ? data.exercises.get(e.id) : { id: uuid() };
   if (e.libraryId) ex.libraryId = e.libraryId;
-  Object.assign(ex, { name, image: e.image, metric: e.metric, primaryMuscle: e.primary, secondaryMuscles: [...e.secondary] });
+  Object.assign(ex, { name, image: e.image, metric: e.metric, metricV: 2, primaryMuscle: e.primary, secondaryMuscles: [...e.secondary] });
   save('exercises', ex);
   const cb = e.onSave;
   closeEditor();
@@ -921,9 +949,9 @@ function toggleSet(row) {
     if (!v1) return openPicker(s.id, 'duration');
     Object.assign(s, { durationSec: Math.round(v1), weight: null, reps: null, done: true });
   } else {
-    if (v1 == null) return openPicker(s.id, 'weight');
+    if (v1 == null && row.dataset.metric !== 'reps') return openPicker(s.id, 'weight');
     if (v2 == null) return openPicker(s.id, 'reps');
-    Object.assign(s, { weight: v1, reps: Math.round(v2), durationSec: null, done: true });
+    Object.assign(s, { weight: v1 ?? 0, reps: Math.round(v2), durationSec: null, done: true });
   }
   save('sets', s);
   render();
@@ -999,6 +1027,7 @@ async function importData(file) {
   if (payload?.app !== 'gymlog') return toast('Not a Gym Log backup');
   // Merge: per record, the newer version (updatedAt) wins
   const changed = await Sync.merge(payload);
+  migrateMetrics(); // library.js – older backups
   if (changed) Sync.resetPush();
   render();
   toast(changed ? `${plural(changed, 'entry', 'entries')} imported` : 'Nothing new in this backup');
@@ -1245,6 +1274,7 @@ function screenInfo() {
 const domReady = new Promise((r) => (document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', r, { once: true }) : r()));
 (async () => {
   await Promise.all([loadAll(), domReady]);
+  migrateMetrics(); // library.js
   render();
   Sync.loaded();
   Cloud.start(); // cloud.js – syncs if signed in
